@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NOVAFÍSICA - Aprendizaje Gamificado</title>
+    <!-- Fuentes de Google: Poppins y Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+    <!-- p5.js para interactividad real -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <!-- Estilos de la aplicación -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Modal de Ingreso (Login Simulado) -->
+    <div id="login-modal" class="modal-overlay">
+        <div class="modal-content glass">
+            <h2>Bienvenido a NOVAFÍSICA</h2>
+            <p>Ingresa tu correo para cargar tu progreso</p>
+            <input type="email" id="user-email" placeholder="explorador@universo.com" required>
+            <button id="btn-login" class="btn btn-nebula">Comenzar Aventura</button>
+        </div>
+    </div>
+
+    <div id="main-content">
+        <!-- 1. Header & Navegación -->
+        <header class="header">
+            <div class="container header-content">
+                <a href="#" class="logo">NOVAFÍSICA</a>
+                <nav class="nav">
+                    <a href="#inicio">Inicio</a>
+                    <a href="#videos">Videos</a>
+                    <a href="#desafios">Desafíos</a>
+                    <a href="#interactivo">Interactivo</a>
+                    <a href="#mi-nivel">Mi Nivel</a>
+                </nav>
+                <div id="user-profile-display" class="user-profile">
+                    <!-- Aquí se inyectará: Explorador: [email] -->
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- 2. Inicio (Landing) -->
+            <section id="inicio" class="hero">
+                <div class="container hero-content">
+                    <h1 class="hero-title fade-in-up">Domina la Física Jugando</h1>
+                    <p class="hero-desc fade-in-up delay-1">Explora las leyes del universo a través de nuestra plataforma de aprendizaje interactivo y gamificado.</p>
+                    <a href="#desafios" class="btn btn-nebula fade-in-up delay-2">Comenzar Aventura</a>
+                </div>
+            </section>
+
+            <!-- 3. Videos -->
+            <section id="videos" class="section">
+                <div class="container">
+                    <h2 class="section-title">Videoteca Cuántica</h2>
+                    <div class="video-grid">
+                        <div class="video-card">
+                            <div class="video-thumbnail">
+                                <img src="https://images.unsplash.com/photo-1636819488524-1f019fc4eb80?q=80&w=600&auto=format&fit=crop" alt="Mecánica Clásica">
+                                <button class="play-btn" aria-label="Reproducir video">
+                                    <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+                                </button>
+                            </div>
+                            <h3 class="category-title">Mecánica Clásica</h3>
+                            <p class="long-text">Descubre las leyes del movimiento de Newton.</p>
+                        </div>
+                        <div class="video-card">
+                            <div class="video-thumbnail">
+                                <img src="https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=600&auto=format&fit=crop" alt="Astrofísica">
+                                <button class="play-btn" aria-label="Reproducir video">
+                                    <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+                                </button>
+                            </div>
+                            <h3 class="category-title">Astrofísica</h3>
+                            <p class="long-text">Agujeros negros y la relatividad general.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Desafíos (Con p5.js integrado) -->
+            <section id="desafios" class="section bg-light">
+                <div class="container">
+                    <h2 class="section-title">Desafíos Cognitivos</h2>
+                    <p class="instruction" style="text-align: center; margin-bottom: 2rem;">Interactúa con la simulación para ganar puntos de experiencia.</p>
+                    <div class="challenge-grid">
+                        <div class="challenge-card" id="reto-p5">
+                            <h3 class="challenge-question">Simulador: Movimiento Parabólico</h3>
+                            <p class="instruction">Haz clic en el canvas para lanzar el proyectil y golpear el objetivo. Ganas 100 XP por acierto, pierdes 1 vida por fallo.</p>
+                            <!-- Contenedor para el canvas de p5.js -->
+                            <div id="p5-game-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. Imágenes Interactivas -->
+            <section id="interactivo" class="section">
+                <div class="container">
+                    <h2 class="section-title">Laboratorio Virtual</h2>
+                    <p class="instruction" style="text-align: center; margin-bottom: 2rem;">Pasa el cursor sobre los puntos azules para descubrir los conceptos.</p>
+                    <div class="interactive-diagram">
+                        <div class="diagram-image">
+                            <img src="https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1200&auto=format&fit=crop" alt="Diagrama de Física">
+                            <div class="hotspot" style="top: 35%; left: 45%;">
+                                <div class="hotspot-ripple"></div>
+                                <div class="hotspot-dot"></div>
+                                <div class="tooltip">Tensión (T)</div>
+                            </div>
+                            <div class="hotspot" style="top: 65%; left: 65%;">
+                                <div class="hotspot-ripple"></div>
+                                <div class="hotspot-dot"></div>
+                                <div class="tooltip">Peso (W = mg)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 6. Mi Nivel (Gamificación - Dinámico con LocalStorage) -->
+            <section id="mi-nivel" class="section section-dark">
+                <div class="container gamification-dashboard">
+                    <h2 class="section-title" style="color: var(--white);">Mi Perfil Cuántico</h2>
+                    
+                    <div class="dashboard-stats">
+                        <div class="stat-card glass">
+                            <span class="stat-value" id="ui-xp">0 XP</span>
+                            <span class="stat-label">Experiencia</span>
+                        </div>
+                        <div class="stat-card glass lives">
+                            <div class="batteries" id="ui-vidas">
+                                <!-- Vidas renderizadas por JS -->
+                            </div>
+                            <span class="stat-label">Energía Vital</span>
+                        </div>
+                        <div class="stat-card glass streak">
+                            <svg class="flame-icon" viewBox="0 0 24 24" width="48" height="48"><path fill="currentColor" d="M11.71 1.74a1.01 1.01 0 0 0-1.46.22C8.75 3.94 6.75 6.78 6 9c-1.37 4.14-1 8.87 3 11 0 0 1.5-.75 2-1 3.5 1.5 7-1 7-5.5 0-3-1.63-5.75-2.25-6.75-.4-.64-1.31-.69-1.78-.1a17.29 17.29 0 0 0-2.26 3.85c-.09.19-.38.16-.43-.04-.63-2.61.12-6.62 1.43-8.72.06-.09.07-.22 0-.31z"/></svg>
+                            <span class="stat-value" id="ui-racha">0 Días</span>
+                            <span class="stat-label">Racha Activa</span>
+                        </div>
+                    </div>
+
+                    <h3 class="category-title" style="text-align: center; margin-top: 2rem; color: var(--white);">Insignias Desbloqueadas</h3>
+                    <div class="badges-grid" id="ui-insignias">
+                        <!-- Insignias renderizadas por JS -->
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 7. Footer -->
+        <footer class="footer">
+            <div class="container footer-content">
+                <h3 class="category-title" style="color: var(--white); margin-bottom: 1rem;">Quiénes Somos</h3>
+                <p class="long-text" style="max-width: 600px; margin: 0 auto 2rem auto; color: var(--text-light);">
+                    NOVAFÍSICA es una plataforma educativa gamificada.
+                </p>
+                <div class="divider"></div>
+                <p class="author-credits">Autor: Jhon Sebastian Bernal Maldonado</p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
