@@ -1,9 +1,45 @@
 /**
- * NOVAFÍSICA - Script Principal & Gestor de Estado
+ * NOVAFÍSICA - Script Principal & Gestor de Estado (Emil Kowalski Edition)
  */
 
 // ==========================================
-// 1. GESTOR DE PROGRESO (LOCALSTORAGE)
+// 1. SISTEMA DE TOASTS (Estilo Sonner)
+// ==========================================
+class ToastSystem {
+    constructor() {
+        this.container = document.getElementById('toast-container');
+    }
+
+    show(message, type = 'info') {
+        if (!this.container) return;
+        
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        
+        // Iconos basados en el tipo
+        let icon = '✨';
+        if (type === 'success') icon = '🏆';
+        if (type === 'error') icon = '💔';
+        
+        toast.innerHTML = `<span style="font-size: 1.2rem;">${icon}</span> <span>${message}</span>`;
+        
+        this.container.appendChild(toast);
+
+        // Remover automáticamente después de 4 segundos
+        setTimeout(() => {
+            toast.classList.add('exiting');
+            // Escuchar el final de la animación para limpiar el DOM
+            toast.addEventListener('animationend', () => {
+                toast.remove();
+            }, { once: true });
+        }, 4000);
+    }
+}
+
+const toast = new ToastSystem();
+
+// ==========================================
+// 2. GESTOR DE PROGRESO (LOCALSTORAGE)
 // ==========================================
 class GestorProgreso {
     constructor() {
@@ -14,6 +50,7 @@ class GestorProgreso {
         const dataGuardada = localStorage.getItem(`novafisica_${email}`);
         if (dataGuardada) {
             this.estado = JSON.parse(dataGuardada);
+            toast.show('Progreso cargado exitosamente. ¡Bienvenido de vuelta!', 'success');
         } else {
             // Estado inicial por defecto
             this.estado = {
@@ -21,9 +58,10 @@ class GestorProgreso {
                 xp: 0,
                 vidas: 3,
                 racha: 1,
-                insignias: ['explorador'] // Insignia inicial
+                insignias: ['explorador']
             };
             this.guardar();
+            toast.show('Nueva aventura iniciada. ¡Exploremos el universo!', 'info');
         }
         this.actualizarUI();
     }
@@ -38,13 +76,20 @@ class GestorProgreso {
         if (!this.estado) return;
         this.estado.xp += cantidad;
         
-        // Efecto visual en XP
+        // Efecto visual hiper-fluido usando requestAnimationFrame
         const xpElement = document.getElementById('ui-xp');
         if (xpElement) {
-            xpElement.style.transform = 'scale(1.2)';
-            setTimeout(() => xpElement.style.transform = 'scale(1)', 300);
+            requestAnimationFrame(() => {
+                xpElement.style.transform = 'scale(1.15)';
+                setTimeout(() => {
+                    requestAnimationFrame(() => {
+                        xpElement.style.transform = 'scale(1)';
+                    });
+                }, 400);
+            });
         }
         
+        toast.show(`+${cantidad} XP Obtenida`, 'success');
         this.guardar();
         this.actualizarUI();
     }
@@ -52,6 +97,7 @@ class GestorProgreso {
     restarVida() {
         if (!this.estado || this.estado.vidas <= 0) return;
         this.estado.vidas -= 1;
+        toast.show('¡Cuidado! Has perdido una vida.', 'error');
         this.guardar();
         this.actualizarUI();
     }
@@ -80,7 +126,7 @@ class GestorProgreso {
             vidasContainer.appendChild(span);
         }
 
-        // Insignias (Renderizado simple basado en array)
+        // Insignias
         const insigniasContainer = document.getElementById('ui-insignias');
         insigniasContainer.innerHTML = '';
         
@@ -102,11 +148,14 @@ class GestorProgreso {
             }
         });
 
-        // Revisar si gana nueva insignia por XP
+        // Revisar si gana nueva insignia
         if (this.estado.xp >= 500 && !this.estado.insignias.includes('francotirador')) {
             this.estado.insignias.push('francotirador');
             this.guardar();
-            this.actualizarUI(); // Re-renderizar
+            toast.show('¡Insignia Desbloqueada: Tiro Parabólico!', 'success');
+            
+            // Usamos rAF para deferir la renderización y evitar layout thrashing
+            requestAnimationFrame(() => this.actualizarUI()); 
         }
     }
 }
@@ -114,7 +163,7 @@ class GestorProgreso {
 const gestor = new GestorProgreso();
 
 // ==========================================
-// 2. INICIALIZACIÓN DEL DOM Y LÓGICA UI
+// 3. INICIALIZACIÓN DEL DOM Y LÓGICA UI
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     initLogin();
@@ -131,19 +180,24 @@ function initLogin() {
     btnLogin.addEventListener('click', () => {
         const email = emailInput.value.trim();
         if (email && email.includes('@')) {
-            // 1. Iniciar sesión en el gestor
             gestor.iniciarSesion(email);
             
-            // 2. Ocultar modal
-            modal.classList.add('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.add('hidden');
+                mainContent.classList.add('visible');
+            });
             
-            // 3. Mostrar contenido principal y cargar p5.js
-            mainContent.classList.add('visible');
-            
-            // Inicializar el canvas solo después del login para que tome el tamaño correcto
-            setTimeout(initP5Game, 300);
+            setTimeout(initP5Game, 400);
         } else {
-            alert('Por favor, ingresa un correo electrónico válido.');
+            toast.show('Ingresa un correo electrónico válido para continuar.', 'error');
+            
+            // Shake effect sutil
+            requestAnimationFrame(() => {
+                emailInput.style.transform = 'translateX(-10px)';
+                setTimeout(() => emailInput.style.transform = 'translateX(10px)', 100);
+                setTimeout(() => emailInput.style.transform = 'translateX(-10px)', 200);
+                setTimeout(() => emailInput.style.transform = 'translateX(0)', 300);
+            });
         }
     });
 }
@@ -168,8 +222,10 @@ function initScrollAnimations() {
     const observer = new IntersectionObserver((entries, obs) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                entry.target.style.opacity = '1';
-                entry.target.style.transform = 'translateY(0)';
+                requestAnimationFrame(() => {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                });
                 obs.unobserve(entry.target);
             }
         });
@@ -179,22 +235,25 @@ function initScrollAnimations() {
     animatedElements.forEach(el => {
         el.style.opacity = '0';
         el.style.transform = 'translateY(40px)';
-        el.style.transition = 'opacity 0.7s ease, transform 0.7s ease';
+        el.style.transition = 'opacity 0.8s cubic-bezier(0.32, 0.72, 0, 1), transform 1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+        el.style.willChange = 'opacity, transform';
         observer.observe(el);
     });
 }
 
 // ==========================================
-// 3. INTEGRACIÓN DE JUEGO (p5.js)
+// 4. INTEGRACIÓN DE JUEGO (p5.js)
 // ==========================================
 function initP5Game() {
-    // Usamos el "Instance Mode" de p5 para no contaminar el scope global
+    // Evitar instanciaciones múltiples
+    if(window.p5Instance) return;
+
     const sketch = (p) => {
         let proyectil;
         let objetivo;
         let disparado = false;
         let gravedad;
-        let estadoMensaje = "Haz clic, arrastra y suelta para disparar.";
+        let estadoMensaje = "Arrastra y suelta para disparar.";
         
         p.setup = () => {
             const container = document.getElementById('p5-game-container');
@@ -202,24 +261,25 @@ function initP5Game() {
             const canvas = p.createCanvas(w, 400);
             canvas.parent('p5-game-container');
             
-            gravedad = p.createVector(0, 0.2);
+            gravedad = p.createVector(0, 0.25); // Gravedad ajustada
             resetJuego();
         };
 
         p.draw = () => {
-            p.background(240, 245, 250); // Color de fondo del laboratorio
+            // p5.js usa rAF internamente de forma muy eficiente para draw()
+            p.background(248, 250, 252);
             
             // Suelo
-            p.fill(30, 41, 59);
+            p.fill(15, 23, 42);
             p.noStroke();
             p.rect(0, p.height - 20, p.width, 20);
 
             // Dibujar objetivo
-            p.fill(168, 85, 247); // Morado
-            p.rect(objetivo.x, objetivo.y, objetivo.w, objetivo.h);
+            p.fill(168, 85, 247);
+            p.rect(objetivo.x, objetivo.y, objetivo.w, objetivo.h, 4); // Bordes redondeados
 
             // Dibujar cañón base
-            p.fill(56, 189, 248); // Azul clarito
+            p.fill(56, 189, 248);
             p.arc(50, p.height - 20, 60, 60, p.PI, p.TWO_PI);
 
             // Lógica del proyectil
@@ -227,20 +287,20 @@ function initP5Game() {
                 proyectil.vel.add(gravedad);
                 proyectil.pos.add(proyectil.vel);
                 
-                // Colisión con suelo o paredes
+                // Colisión bordes
                 if (proyectil.pos.y > p.height || proyectil.pos.x > p.width || proyectil.pos.x < 0) {
                     fallo();
                 }
                 
-                // Colisión con objetivo
+                // Colisión objetivo (AABB simple)
                 if (proyectil.pos.x > objetivo.x && proyectil.pos.x < objetivo.x + objetivo.w &&
                     proyectil.pos.y > objetivo.y && proyectil.pos.y < objetivo.y + objetivo.h) {
                     acierto();
                 }
             } else if (p.mouseIsPressed) {
-                // Dibujar línea de puntería
-                p.stroke(56, 189, 248);
-                p.strokeWeight(2);
+                // Dibujar línea de tensión
+                p.stroke(148, 163, 184); // Gris suave
+                p.strokeWeight(3);
                 p.line(50, p.height - 20, p.mouseX, p.mouseY);
             }
 
@@ -249,36 +309,36 @@ function initP5Game() {
             p.noStroke();
             p.circle(proyectil.pos.x, proyectil.pos.y, 16);
 
-            // Mensaje de estado
-            p.fill(15, 23, 42);
-            p.textSize(16);
+            // Mensaje estado
+            p.fill(100, 116, 139);
+            p.textSize(15);
             p.textAlign(p.CENTER);
-            p.text(estadoMensaje, p.width / 2, 30);
+            p.textFont('Inter'); // Tipografía del proyecto
+            p.text(estadoMensaje, p.width / 2, 35);
         };
 
         p.mouseReleased = () => {
             if (!disparado && p.mouseX > 0 && p.mouseX < p.width && p.mouseY > 0 && p.mouseY < p.height) {
                 disparado = true;
-                // Calcular vector de fuerza según distancia del click al cañón (Inverso, como resortera)
                 let fuerza = p.createVector(50 - p.mouseX, (p.height - 20) - p.mouseY);
-                fuerza.mult(0.1); // Reducir escala de fuerza
+                fuerza.mult(0.12); // Factor de resorte ajustado
                 proyectil.vel = fuerza;
                 estadoMensaje = "¡Proyectil en vuelo!";
             }
         };
 
         function acierto() {
-            estadoMensaje = "¡Impacto Perfecto! +100 XP";
+            estadoMensaje = "¡Impacto Perfecto!";
             disparado = false;
             gestor.sumarXP(100);
-            setTimeout(resetJuego, 1500);
+            setTimeout(resetJuego, 1200);
         }
 
         function fallo() {
-            estadoMensaje = "Fallaste. Pierdes 1 vida.";
+            estadoMensaje = "Fallaste. Intenta de nuevo.";
             disparado = false;
             gestor.restarVida();
-            setTimeout(resetJuego, 1500);
+            setTimeout(resetJuego, 1200);
         }
 
         function resetJuego() {
@@ -286,24 +346,24 @@ function initP5Game() {
                 pos: p.createVector(50, p.height - 20),
                 vel: p.createVector(0, 0)
             };
-            // Posicionar objetivo aleatoriamente en la mitad derecha
             objetivo = {
-                x: p.random(p.width / 2, p.width - 100),
+                x: p.random(p.width / 2 + 50, p.width - 60),
                 y: p.height - 60,
-                w: 40,
+                w: 45,
                 h: 40
             };
-            estadoMensaje = "Haz clic y arrastra hacia atrás para disparar.";
+            estadoMensaje = "Arrastra y suelta para disparar.";
             disparado = false;
         }
         
-        // Ajustar canvas al redimensionar ventana
         p.windowResized = () => {
             const container = document.getElementById('p5-game-container');
-            const w = Math.min(container.offsetWidth, 800);
-            p.resizeCanvas(w, 400);
+            if(container) {
+                const w = Math.min(container.offsetWidth, 800);
+                p.resizeCanvas(w, 400);
+            }
         };
     };
 
-    new p5(sketch);
+    window.p5Instance = new p5(sketch);
 }
