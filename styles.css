@@ -26,6 +26,15 @@
     --spring: cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Rebote sutil */
     --spring-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1); /* Rebote pronunciado */
     --smooth: cubic-bezier(0.32, 0.72, 0, 1); /* Fluidez total */
+    --ease-float: cubic-bezier(0.45, 0, 0.55, 1); /* Loops decorativos (levitación) */
+    --stagger: 60ms; /* Paso de escalonamiento (30-60ms) */
+
+    /* Tokens de acento */
+    --accent-cyan: #38BDF8;
+    --accent-cyan-strong: #0EA5E9;
+    --accent-violet: #C084FC;
+    --success: #10B981;
+    --text-muted: #94A3B8;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -90,18 +99,30 @@ h3, h4, .category-title { font-weight: 600; }
 
 .modal-content input::placeholder { color: rgba(255,255,255,0.5); }
 .modal-content input:focus { 
-    border-color: #38BDF8; 
+    border-color: var(--accent-cyan); 
     background: rgba(255,255,255,0.1);
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.1), 0 0 0 4px rgba(56, 189, 248, 0.15);
 }
 .modal-content h2, .modal-content p { color: white; }
 
+/* Shake de validación: keyframes con clase (solo transform) */
+.modal-content input.shake { animation: shake 0.5s var(--smooth); }
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-10px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-5px); }
+    80% { transform: translateX(2px); }
+}
+
+/* display y opacity se activan en frames distintos (ver initLogin) para que el fade sí se ejecute */
 #main-content {
     opacity: 0; transition: opacity 0.8s var(--smooth);
     display: none;
     will-change: opacity;
 }
-#main-content.visible { opacity: 1; display: block; }
+#main-content.is-rendered { display: block; }
+#main-content.visible { opacity: 1; }
 
 /* =========================================
    SISTEMA DE TOASTS (Estilo Sonner)
@@ -124,7 +145,7 @@ h3, h4, .category-title { font-weight: 600; }
     display: flex; align-items: center; gap: 12px;
     pointer-events: auto;
     will-change: transform, opacity;
-    animation: toastEnter 0.6s var(--spring-bouncy) forwards;
+    animation: toastEnter 0.6s var(--spring-bouncy) backwards;
     border: 1px solid rgba(0,0,0,0.05);
 }
 
@@ -138,27 +159,36 @@ h3, h4, .category-title { font-weight: 600; }
 }
 
 @keyframes toastExit {
-    from { opacity: 1; transform: scale(1); }
-    to { opacity: 0; transform: scale(0.9); }
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(8px) scale(0.9); }
 }
 
 /* =========================================
    BOTONES E INTERACCIONES
 ========================================= */
 .btn {
-    display: inline-block; padding: 1rem 2.5rem; border-radius: var(--radius-btn);
+    position: relative; display: inline-block; padding: 1rem 2.5rem; border-radius: var(--radius-btn);
     text-decoration: none; color: var(--white); border: none; cursor: pointer;
     font-size: 1rem; font-weight: 600;
-    transition: transform 0.4s var(--spring), box-shadow 0.4s var(--smooth);
-    will-change: transform, box-shadow;
+    transition: transform 0.4s var(--spring);
+    will-change: transform;
 }
 .btn:active { transform: scale(0.96) !important; } /* Micro-interacción: click scale */
 
 .btn-nebula { background: var(--nebula-grad); box-shadow: 0 8px 20px rgba(168, 85, 247, 0.25); }
-.btn-nebula:hover { transform: translateY(-4px); box-shadow: 0 14px 28px rgba(168, 85, 247, 0.4); }
+/* Elevación en hover: la sombra grande vive en ::after y solo anima opacity (GPU) */
+.btn-nebula::after, .btn-plasma::after, .video-card::after, .glass::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.6s var(--smooth); will-change: opacity;
+}
+.btn-nebula::after { box-shadow: 0 14px 28px rgba(168, 85, 247, 0.4); }
+.btn-plasma::after { box-shadow: 0 14px 28px rgba(126, 34, 206, 0.4); }
+.btn-nebula:hover, .btn-plasma:hover { transform: translateY(-4px); }
+.btn-nebula:hover::after, .btn-plasma:hover::after { opacity: 1; }
 
 .btn-plasma { background: var(--plasma-grad); box-shadow: 0 8px 20px rgba(126, 34, 206, 0.25); }
-.btn-plasma:hover { transform: translateY(-4px); box-shadow: 0 14px 28px rgba(126, 34, 206, 0.4); }
+
 
 /* =========================================
    HEADER & NAVEGACIÓN (Glassmorphism)
@@ -168,14 +198,14 @@ h3, h4, .category-title { font-weight: 600; }
     backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     position: sticky; top: 0; z-index: 1000;
-    padding: 1.2rem 0; transition: all 0.4s var(--smooth);
+    padding: 1.2rem 0;
 }
 .header-content { display: flex; justify-content: space-between; align-items: center; }
 .logo { color: var(--white); font-family: var(--font-heading); font-size: 1.5rem; font-weight: 700; text-decoration: none; letter-spacing: -0.5px;}
 .nav { display: flex; gap: 2rem; }
 .nav a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.95rem; transition: color 0.3s var(--smooth), transform 0.3s var(--spring); display: inline-block; }
-.nav a:hover { color: #38BDF8; transform: translateY(-2px); }
-.user-profile { font-size: 0.95rem; color: #38BDF8; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;}
+.nav a:hover { color: var(--accent-cyan); transform: translateY(-2px); }
+.user-profile { font-size: 0.95rem; color: var(--accent-cyan); font-weight: 600; display: flex; align-items: center; gap: 0.5rem;}
 
 /* =========================================
    INICIO (HERO)
@@ -188,10 +218,11 @@ h3, h4, .category-title { font-weight: 600; }
 .hero-title { font-size: 4.5rem; margin-bottom: 1.5rem; line-height: 1.1; letter-spacing: -1px; }
 .hero-desc { font-size: 1.25rem; color: var(--text-light); margin-bottom: 3rem; max-width: 700px; margin-inline: auto; }
 
-.fade-in-up { opacity: 0; transform: translateY(40px); animation: fadeInUp 1s var(--smooth) forwards; will-change: transform, opacity; }
-.delay-1 { animation-delay: 0.15s; }
-.delay-2 { animation-delay: 0.3s; }
-@keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+/* fill-mode 'backwards': al terminar no retiene el transform, así :hover/:active del .btn siguen funcionando */
+.fade-in-up { animation: fadeInUp 1s var(--smooth) var(--delay, 0s) backwards; will-change: transform, opacity; }
+.delay-1 { --delay: var(--stagger); }
+.delay-2 { --delay: calc(var(--stagger) * 2); }
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(40px); } }
 
 /* =========================================
    VIDEOS & DESAFÍOS (Tarjetas)
@@ -201,10 +232,12 @@ h3, h4, .category-title { font-weight: 600; }
 
 .video-card { 
     background: var(--white); border-radius: var(--radius-card); padding: 1.5rem; 
-    box-shadow: var(--shadow-soft); transition: transform 0.6s var(--spring), box-shadow 0.6s var(--smooth); 
-    will-change: transform, box-shadow; cursor: pointer;
+    box-shadow: var(--shadow-soft); transition: transform 0.6s var(--spring); 
+    position: relative; will-change: transform; cursor: pointer;
 }
-.video-card:hover { transform: translateY(-12px); box-shadow: var(--shadow-premium); }
+.video-card::after { box-shadow: var(--shadow-premium); }
+.video-card:hover { transform: translateY(-12px); }
+.video-card:hover::after { opacity: 1; }
 .video-card:active { transform: scale(0.97); }
 
 .video-thumbnail { position: relative; border-radius: 16px; overflow: hidden; margin-bottom: 1.5rem; aspect-ratio: 16/9; }
@@ -232,10 +265,10 @@ h3, h4, .category-title { font-weight: 600; }
 #p5-game-container {
     display: flex; justify-content: center; margin-top: 2rem;
     border-radius: 20px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05), inset 0 4px 12px rgba(0,0,0,0.03);
-    background: var(--bg-main); transition: transform 0.4s var(--spring);
+    background: var(--bg-main);
 }
 #p5-game-container canvas { border-radius: 20px; display: block; }
-#p5-game-container:active { transform: scale(0.98); }
+/* Excepción deliberada: sin :active scale en el canvas. El usuario arrastra para apuntar y escalar desfasaría mouseX/mouseY. */
 
 /* =========================================
    IMÁGENES INTERACTIVAS
@@ -250,7 +283,7 @@ h3, h4, .category-title { font-weight: 600; }
 
 .hotspot { position: absolute; width: 48px; height: 48px; transform: translate(-50%, -50%); cursor: pointer; }
 .hotspot-dot { 
-    width: 16px; height: 16px; background-color: #38BDF8; border-radius: 50%; 
+    width: 16px; height: 16px; background-color: var(--accent-cyan); border-radius: 50%; 
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2; 
     transition: transform 0.6s var(--spring-bouncy), background-color 0.4s var(--smooth); 
     box-shadow: 0 4px 12px rgba(56, 189, 248, 0.4);
@@ -260,7 +293,7 @@ h3, h4, .category-title { font-weight: 600; }
     position: absolute; top: 0; left: 0; animation: ripple 2.5s infinite cubic-bezier(0.2, 0, 0.2, 1); z-index: 1; 
 }
 @keyframes ripple { 0% { transform: scale(0.3); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
-.hotspot:hover .hotspot-dot { transform: translate(-50%, -50%) scale(1.5); background-color: #0ea5e9; }
+.hotspot:hover .hotspot-dot, .hotspot:focus-visible .hotspot-dot { transform: translate(-50%, -50%) scale(1.5); background-color: var(--accent-cyan-strong); }
 
 .tooltip {
     position: absolute; top: -70px; left: 50%; transform: translateX(-50%) scale(0.8) translateY(10px); opacity: 0;
@@ -272,7 +305,7 @@ h3, h4, .category-title { font-weight: 600; }
     will-change: transform, opacity;
 }
 .tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border-width: 6px; border-style: solid; border-color: rgba(15, 23, 42, 0.9) transparent transparent transparent; }
-.hotspot:hover .tooltip { transform: translateX(-50%) scale(1) translateY(0); opacity: 1; }
+.hotspot:hover .tooltip, .hotspot:focus-visible .tooltip { transform: translateX(-50%) scale(1) translateY(0); opacity: 1; }
 
 /* =========================================
    GAMIFICACIÓN (Glassmorphism)
@@ -283,24 +316,26 @@ h3, h4, .category-title { font-weight: 600; }
     background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
     border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: var(--shadow-glass), inset 0 1px 0 rgba(255,255,255,0.1); 
     border-radius: var(--radius-card); padding: 2.5rem 2rem;
-    transition: transform 0.6s var(--spring), box-shadow 0.6s var(--smooth);
-    will-change: transform, box-shadow; cursor: pointer;
+    transition: transform 0.6s var(--spring);
+    position: relative; will-change: transform; cursor: pointer;
 }
-.glass:hover { transform: translateY(-8px); box-shadow: 0 12px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15); }
+.glass::after { box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
+.glass:hover { transform: translateY(-8px); }
+.glass:hover::after { opacity: 1; }
 .glass:active { transform: scale(0.97); }
 
 .dashboard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; }
 .stat-card { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .stat-value { font-size: 3.5rem; font-weight: 700; font-family: var(--font-heading); background: var(--nebula-grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; transition: transform 0.6s var(--spring-bouncy); will-change: transform;}
-.stat-label { font-size: 0.9rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 2px; font-weight: 600;}
+.stat-label { font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; font-weight: 600;}
 
-.batteries { display: flex; gap: 0.75rem; color: #10B981; margin-bottom: 1rem; }
+.batteries { display: flex; gap: 0.75rem; color: var(--success); margin-bottom: 1rem; }
 .battery { transition: transform 0.4s var(--spring-bouncy), opacity 0.4s var(--smooth); will-change: transform;}
 .battery:hover { transform: scale(1.2) rotate(5deg); }
-.battery.empty { color: #334155; opacity: 0.3; }
+.battery.empty { color: var(--text-main); opacity: 0.3; }
 
-.flame-icon { color: #C084FC; margin-bottom: 1rem; filter: drop-shadow(0 0 20px rgba(192, 132, 252, 0.4)); animation: float 4s ease-in-out infinite; will-change: transform;}
-@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+.flame-icon { color: var(--accent-violet); margin-bottom: 1rem; filter: drop-shadow(0 0 20px rgba(192, 132, 252, 0.4)); animation: float 2s var(--ease-float) infinite alternate; will-change: transform;}
+@keyframes float { from { transform: translateY(0); } to { transform: translateY(-12px); } }
 
 .badges-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2.5rem; }
 .badge { text-align: center; position: relative; overflow: hidden; }
@@ -309,11 +344,14 @@ h3, h4, .category-title { font-weight: 600; }
 
 /* Efecto metálico sutil y realista */
 .badge-shiny .shine {
-    position: absolute; top: 0; left: -150%; width: 50%; height: 100%;
+    position: absolute; top: 0; left: 0; width: 50%; height: 100%;
     background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
-    transform: skewX(-20deg); animation: shine 5s infinite cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none;
+    transform: translateX(-300%) skewX(-20deg); will-change: transform; animation: shine 5s infinite cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none;
 }
-@keyframes shine { 0% { left: -150%; } 20% { left: 250%; } 100% { left: 250%; } }
+@keyframes shine {
+    0% { transform: translateX(-300%) skewX(-20deg); }
+    20%, 100% { transform: translateX(500%) skewX(-20deg); }
+}
 
 /* =========================================
    FOOTER
@@ -323,3 +361,51 @@ h3, h4, .category-title { font-weight: 600; }
 .footer-content { display: flex; flex-direction: column; align-items: center; }
 .divider { width: 40px; height: 4px; background: var(--nebula-grad); margin: 2rem auto; border-radius: 4px; opacity: 0.8;}
 .author-credits { color: var(--white); font-weight: 600; font-size: 1.1rem; font-family: var(--font-heading); margin-bottom: 1.5rem; letter-spacing: 0.5px;}
+
+/* =========================================
+   REVEAL ON SCROLL (clases, no estilos inline)
+   Se retiran al terminar para no interferir con el hover de cada tarjeta.
+========================================= */
+.reveal {
+    opacity: 0; transform: translateY(40px);
+    transition:
+        opacity 0.8s var(--smooth) calc(var(--reveal-i, 0) * var(--stagger)),
+        transform 1s var(--spring) calc(var(--reveal-i, 0) * var(--stagger));
+    will-change: opacity, transform;
+}
+.reveal.in-view { opacity: 1; transform: translateY(0); }
+
+/* Pulso de XP al ganar puntos */
+.stat-value.is-bumping { transform: scale(1.15); }
+
+/* =========================================
+   ACCESIBILIDAD: FOCO VISIBLE
+========================================= */
+.btn:focus-visible, .nav a:focus-visible, .logo:focus-visible,
+.play-btn:focus-visible, .hotspot:focus-visible {
+    outline: 2px solid var(--accent-cyan); outline-offset: 4px;
+}
+.hotspot:focus-visible { border-radius: 50%; }
+
+/* =========================================
+   ACCESIBILIDAD: prefers-reduced-motion
+   Se eliminan rebotes/transformaciones y quedan fundidos de opacidad.
+========================================= */
+@keyframes fadeOnly { from { opacity: 0; } }
+@keyframes fadeOnlyOut { to { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+        transition-property: opacity, color, background-color, border-color !important;
+        transition-duration: 0.3s !important;
+        transition-delay: 0s !important;
+        transition-timing-function: var(--smooth) !important;
+    }
+    .btn:hover, .btn:active, .nav a:hover, .video-card:hover, .video-card:active,
+    .glass:hover, .glass:active, .battery:hover, .play-btn:active { transform: none !important; }
+    .fade-in-up, .toast { animation-name: fadeOnly; animation-duration: 0.3s; animation-delay: 0s; }
+    .toast.exiting { animation-name: fadeOnlyOut; animation-duration: 0.3s; }
+    .flame-icon, .badge-shiny .shine, .modal-content input.shake { animation: none; }
+    .hotspot-ripple { animation: none; opacity: 0; }
+}

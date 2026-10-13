@@ -8,6 +8,28 @@
 class ToastSystem {
     constructor() {
         this.container = document.getElementById('toast-container');
+        this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    }
+
+    /**
+     * FLIP: ejecuta una mutación del DOM y anima los toasts existentes
+     * desde su posición anterior a la nueva, evitando saltos bruscos en el stack.
+     */
+    _flip(mutar) {
+        const existentes = [...this.container.children];
+        const antes = new Map(existentes.map(el => [el, el.getBoundingClientRect().top]));
+        mutar();
+        if (this.reducedMotion.matches) return;
+
+        existentes.forEach(el => {
+            if (!el.isConnected) return;
+            const delta = antes.get(el) - el.getBoundingClientRect().top;
+            if (!delta) return;
+            el.animate(
+                [{ transform: `translateY(${delta}px)` }, { transform: 'translateY(0)' }],
+                { duration: 500, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' }
+            );
+        });
     }
 
     show(message, type = 'info') {
@@ -23,14 +45,14 @@ class ToastSystem {
         
         toast.innerHTML = `<span style="font-size: 1.2rem;">${icon}</span> <span>${message}</span>`;
         
-        this.container.appendChild(toast);
+        this._flip(() => this.container.appendChild(toast));
 
         // Remover automáticamente después de 4 segundos
         setTimeout(() => {
             toast.classList.add('exiting');
             // Escuchar el final de la animación para limpiar el DOM
             toast.addEventListener('animationend', () => {
-                toast.remove();
+                this._flip(() => toast.remove());
             }, { once: true });
         }, 4000);
     }
@@ -76,16 +98,12 @@ class GestorProgreso {
         if (!this.estado) return;
         this.estado.xp += cantidad;
         
-        // Efecto visual hiper-fluido usando requestAnimationFrame
+        // Pulso de XP: la animación vive en CSS (.is-bumping), JS solo alterna la clase
         const xpElement = document.getElementById('ui-xp');
         if (xpElement) {
             requestAnimationFrame(() => {
-                xpElement.style.transform = 'scale(1.15)';
-                setTimeout(() => {
-                    requestAnimationFrame(() => {
-                        xpElement.style.transform = 'scale(1)';
-                    });
-                }, 400);
+                xpElement.classList.add('is-bumping');
+                setTimeout(() => xpElement.classList.remove('is-bumping'), 400);
             });
         }
         
@@ -182,22 +200,24 @@ function initLogin() {
         if (email && email.includes('@')) {
             gestor.iniciarSesion(email);
             
+            // display (is-rendered) y opacity (visible) en frames distintos: así el fade-in sí se anima
+            mainContent.classList.add('is-rendered');
+            modal.classList.add('hidden');
             requestAnimationFrame(() => {
-                modal.classList.add('hidden');
-                mainContent.classList.add('visible');
+                requestAnimationFrame(() => mainContent.classList.add('visible'));
             });
             
             setTimeout(initP5Game, 400);
         } else {
             toast.show('Ingresa un correo electrónico válido para continuar.', 'error');
             
-            // Shake effect sutil
-            requestAnimationFrame(() => {
-                emailInput.style.transform = 'translateX(-10px)';
-                setTimeout(() => emailInput.style.transform = 'translateX(10px)', 100);
-                setTimeout(() => emailInput.style.transform = 'translateX(-10px)', 200);
-                setTimeout(() => emailInput.style.transform = 'translateX(0)', 300);
-            });
+            // Shake de validación: keyframes en CSS; se reinicia la clase para poder repetirlo
+            emailInput.classList.remove('shake');
+            void emailInput.offsetWidth; // fuerza reflow para reiniciar la animación
+            emailInput.classList.add('shake');
+            emailInput.addEventListener('animationend', () => {
+                emailInput.classList.remove('shake');
+            }, { once: true });
         }
     });
 }
@@ -219,24 +239,35 @@ function initSmoothScrolling() {
 }
 
 function initScrollAnimations() {
+    // Con reduced-motion no se oculta nada: el contenido aparece directamente
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
     const observer = new IntersectionObserver((entries, obs) => {
         entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                requestAnimationFrame(() => {
-                    entry.target.style.opacity = '1';
-                    entry.target.style.transform = 'translateY(0)';
-                });
-                obs.unobserve(entry.target);
-            }
+            if (!entry.isIntersecting) return;
+            const el = entry.target;
+
+            requestAnimationFrame(() => el.classList.add('in-view'));
+
+            // Al terminar el reveal se retiran las clases para que el hover/active propio de cada tarjeta recupere el control
+            const limpiar = (e) => {
+                if (e.target !== el || e.propertyName !== 'transform') return;
+                el.classList.remove('reveal', 'in-view');
+                el.style.removeProperty('--reveal-i');
+                el.removeEventListener('transitionend', limpiar);
+            };
+            el.addEventListener('transitionend', limpiar);
+            obs.unobserve(el);
         });
     }, { threshold: 0.15 });
 
-    const animatedElements = document.querySelectorAll('.section-title, .video-card, .challenge-card, .diagram-image, .glass');
-    animatedElements.forEach(el => {
-        el.style.opacity = '0';
-        el.style.transform = 'translateY(40px)';
-        el.style.transition = 'opacity 0.8s cubic-bezier(0.32, 0.72, 0, 1), transform 1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-        el.style.willChange = 'opacity, transform';
+    // Stagger: índice del elemento dentro de su contenedor (máx. 5 pasos de 60ms)
+    const indicePorPadre = new Map();
+    document.querySelectorAll('.section-title, .video-card, .challenge-card, .diagram-image, .glass:not(.modal-content)').forEach(el => {
+        const indice = indicePorPadre.get(el.parentElement) ?? 0;
+        indicePorPadre.set(el.parentElement, indice + 1);
+        el.style.setProperty('--reveal-i', Math.min(indice, 5));
+        el.classList.add('reveal');
         observer.observe(el);
     });
 }

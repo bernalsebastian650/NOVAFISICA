@@ -17,20 +17,25 @@ Directrices de ingeniería Frontend, arquitectura y UX/UI para el desarrollo de 
   - `--spring: cubic-bezier(0.175, 0.885, 0.32, 1.275)` para botones, tarjetas y elementos interactivos reactivos con rebote sutil.
   - `--spring-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1)` para toasts, badges e hitos gamificados con rebote dinámico.
   - `--smooth: cubic-bezier(0.32, 0.72, 0, 1)` para aperturas de modales, overlays y desplazamientos de sección continuos.
-- **Micro-interacción Táctil Obligatoria:** Todo elemento interactivo (`.btn`, `.challenge-card`, controles de canvas) debe responder al estado activo con compresión elástica:
+- **Micro-interacción Táctil Obligatoria:** Todo elemento interactivo (`.btn`, `.video-card`, `.glass`, `.play-btn`) debe responder al estado activo con compresión elástica:
   ```css
-  .btn:active, .interactive-card:active {
+  .btn:active, .video-card:active, .glass:active {
       transform: scale(0.96);
       transition-duration: 0.1s;
   }
   ```
+  - **Excepción:** el canvas de p5.js (`#p5-game-container`) NO escala en `:active`, porque el usuario arrastra para apuntar y el escalado desfasa `mouseX/mouseY`.
 - **Aceleración por Hardware y Rendimiento a 60fps:**
   - Animar exclusivamente propiedades compuestas por GPU: `transform` y `opacity`.
   - Evitar provocar repaints y reflows (no animar `top`, `left`, `width`, `height`, ni `margin`).
   - Utilizar `will-change: transform, opacity` en elementos con transiciones complejas o continuas.
   - Utilizar `requestAnimationFrame` para animaciones o actualizaciones de layout en tiempo real.
-- **Aparición Progresiva (Staggering):** Los elementos en listas, grids o grupos de estadísticas deben ingresar con escalonamiento temporal (delays de 30ms a 60ms) y desvanecimiento vertical (`translateY(20px)` a `0`).
-- **Respeto a la Accesibilidad:** Soportar `@media (prefers-reduced-motion: reduce)` suprimiendo rebotes y transformaciones en favor de fundidos suaves de opacidad.
+  - Las sombras de elevación en hover NO se transicionan con `box-shadow`: viven en un `::after` cuya `opacity` es lo único que anima.
+  - Prohibido `transition: all` y animar `left/top`; los loops decorativos usan `transform` con curvas tokenizadas (`--ease-float`).
+  - No usar `style.*` para animar desde JS: alternar clases (`.reveal/.in-view`, `.is-bumping`, `.shake`) y definir las curvas en CSS.
+  - Un `animation` con `forwards` retiene `transform` y anula `:hover/:active`; usar `backwards`.
+- **Aparición Progresiva (Staggering):** Los elementos en listas, grids o grupos de estadísticas deben ingresar con escalonamiento temporal (`--stagger: 60ms`, máx. 5 pasos vía `--reveal-i`) y desvanecimiento vertical.
+- **Respeto a la Accesibilidad:** Soportar `@media (prefers-reduced-motion: reduce)` suprimiendo rebotes y transformaciones en favor de fundidos suaves de opacidad (ya implementado al final de `styles.css`; JS debe consultar `matchMedia` antes de animar). Todo elemento interactivo necesita `:focus-visible` (los hotspots llevan `tabindex="0"`).
 
 ---
 
