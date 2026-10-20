@@ -57,6 +57,13 @@ Directrices de ingeniería Frontend, arquitectura y UX/UI para el desarrollo de 
 - **Consistencia de Espaciado y Radios:**
   - Tarjetas y contenedores: `--radius-card: 24px;`
   - Botones y pastillas (Pills): `--radius-btn: 999px;`
+  - Superficies anidadas: `--radius-md: 16px;` (miniaturas, canvas, inputs) y `--radius-sm: 12px;` (toasts, tooltips).
+- **Escala de Espaciado:** Solo `--space-*` (múltiplos de 4px). Prohibidos valores como `13px`, `17px` o `1.1rem`.
+- **Cero colores quemados:** fuera de `:root` no hay hex ni `rgba()` de marca; usar tokens o `color-mix(in srgb, var(--token) N%, transparent)`. El canvas de p5.js lee sus colores con `tokenCSS('--token')`.
+- **Contraste WCAG AA (4.5:1):** `--text-light` solo sobre fondos claros; `--text-muted` solo sobre oscuros. El texto sobre gradientes usa `--on-nebula` / `--on-plasma`.
+- **Glass:** `blur(var(--blur-glass))` + borde `--border-glass-dark` (fondos oscuros) o `--border-glass-light` (claros).
+- **Iconos de métricas:** cajas fijas (`.metric-icon` 48px, `.battery` 32px, `.toast-icon` 24px) con centrado flex; el SVG es `display: block`.
+- **Tipografía:** Poppins 600/700 (títulos, nav, CTAs, perfil) · Inter 400/500 (lectura, datos, etiquetas). `letter-spacing` de etiquetas entre `0.02em` y `0.05em`.
 
 ---
 

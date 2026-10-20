@@ -304,6 +304,8 @@ function initP5Game() {
         let disparado = false;
         let gravedad;
         let estadoMensaje = "Arrastra y suelta para disparar.";
+        let paleta; // Colores del canvas, leídos de los tokens de styles.css
+
         
         p.setup = () => {
             const container = document.getElementById('p5-game-container');
@@ -312,24 +314,32 @@ function initP5Game() {
             canvas.parent('p5-game-container');
             
             gravedad = p.createVector(0, 0.25); // Gravedad ajustada
+            paleta = {
+                fondo: p.color(tokenCSS('--bg-main')),
+                estructura: p.color(tokenCSS('--dark-blue')),
+                objetivo: p.color(tokenCSS('--accent-purple')),
+                canon: p.color(tokenCSS('--accent-cyan')),
+                tension: p.color(tokenCSS('--text-muted')),
+                mensaje: p.color(tokenCSS('--text-light'))
+            };
             resetJuego();
         };
 
         p.draw = () => {
             // p5.js usa rAF internamente de forma muy eficiente para draw()
-            p.background(248, 250, 252);
+            p.background(paleta.fondo);
             
             // Suelo
-            p.fill(15, 23, 42);
+            p.fill(paleta.estructura);
             p.noStroke();
             p.rect(0, p.height - 20, p.width, 20);
 
             // Dibujar objetivo
-            p.fill(168, 85, 247);
+            p.fill(paleta.objetivo);
             p.rect(objetivo.x, objetivo.y, objetivo.w, objetivo.h, 4); // Bordes redondeados
 
             // Dibujar cañón base
-            p.fill(56, 189, 248);
+            p.fill(paleta.canon);
             p.arc(50, p.height - 20, 60, 60, p.PI, p.TWO_PI);
 
             // Lógica del proyectil
@@ -349,18 +359,18 @@ function initP5Game() {
                 }
             } else if (p.mouseIsPressed) {
                 // Dibujar línea de tensión
-                p.stroke(148, 163, 184); // Gris suave
+                p.stroke(paleta.tension);
                 p.strokeWeight(3);
                 p.line(50, p.height - 20, p.mouseX, p.mouseY);
             }
 
             // Dibujar proyectil
-            p.fill(15, 23, 42);
+            p.fill(paleta.estructura);
             p.noStroke();
             p.circle(proyectil.pos.x, proyectil.pos.y, 16);
 
             // Mensaje estado
-            p.fill(100, 116, 139);
+            p.fill(paleta.mensaje);
             p.textSize(15);
             p.textAlign(p.CENTER);
             p.textFont('Inter'); // Tipografía del proyecto

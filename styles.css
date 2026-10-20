@@ -1,73 +1,132 @@
 /* =========================================
-   VARIABLES & DESIGN SYSTEM (Kowalski Edition)
+   VARIABLES & DESIGN SYSTEM (Impeccable + Kowalski Edition)
+   Fuente única de verdad: ningún valor visual fuera de :root.
 ========================================= */
 :root {
-    --bg-main: #F8FAFC;
-    --dark-blue: #0F172A;
-    --text-main: #334155;
-    --text-light: #64748B;
+    /* --- Paleta base --- */
+    --bg-main: #F8FAFC;       /* Fondo de página y superficies claras */
+    --dark-blue: #0F172A;     /* Header, Footer, secciones oscuras */
+    --text-main: #334155;     /* Texto principal (9.9:1 sobre --bg-main) */
+    --text-light: #64748B;    /* Texto secundario SOLO sobre claro (4.5:1 sobre --bg-main) */
+    --text-muted: #94A3B8;    /* Texto secundario SOLO sobre oscuro (6.9:1 sobre --dark-blue) */
     --white: #FFFFFF;
-    
-    --nebula-grad: linear-gradient(135deg, #38BDF8, #A855F7);
-    --plasma-grad: linear-gradient(135deg, #7E22CE, #C084FC);
-    
-    /* Sombras Hiperrealistas y Multicapa */
+
+    /* --- Acentos --- */
+    --accent-cyan: #38BDF8;
+    --accent-cyan-strong: #0EA5E9;
+    --accent-purple: #A855F7;
+    --accent-violet: #C084FC;
+    --accent-plasma: #7E22CE;
+    --success: #10B981;
+
+    /* --- Gradientes: solo para acción principal (Nebulosa) y recompensas (Plasma) --- */
+    --nebula-grad: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+    --plasma-grad: linear-gradient(135deg, var(--accent-plasma), var(--accent-violet));
+
+    /* --- Texto sobre gradientes (contraste WCAG AA) ---
+       Blanco sobre Nebulosa solo daba 2.1:1 - 3.9:1; --dark-blue da 4.5:1 - 8.3:1.
+       Para volver al texto blanco basta cambiar --on-nebula. */
+    --on-nebula: var(--dark-blue);
+    --on-plasma: var(--white);
+
+    /* --- Sombras multicapa --- */
     --shadow-soft: 0 2px 8px -2px rgba(15, 23, 42, 0.05), 0 4px 16px -4px rgba(15, 23, 42, 0.05);
     --shadow-premium: 0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.12);
     --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
-    
-    --radius-card: 24px;
-    --radius-btn: 999px;
-    
-    --font-heading: 'Poppins', sans-serif;
-    --font-body: 'Inter', sans-serif;
+    --shadow-glass-hover: 0 4px 16px rgba(0,0,0,0.2), 0 16px 40px rgba(0,0,0,0.4);
+    --shadow-inset: inset 0 1px 2px rgba(0,0,0,0.1), inset 0 2px 4px rgba(0,0,0,0.1);
+    --shadow-inset-light: inset 0 0 0 1px rgba(0,0,0,0.05), inset 0 4px 12px rgba(0,0,0,0.03);
+    --shadow-nebula: 0 1px 2px color-mix(in srgb, var(--accent-purple) 20%, transparent), 0 8px 20px color-mix(in srgb, var(--accent-purple) 25%, transparent);
+    --shadow-nebula-hover: 0 2px 4px color-mix(in srgb, var(--accent-purple) 25%, transparent), 0 14px 28px color-mix(in srgb, var(--accent-purple) 40%, transparent);
+    --shadow-plasma: 0 1px 2px color-mix(in srgb, var(--accent-plasma) 20%, transparent), 0 8px 20px color-mix(in srgb, var(--accent-plasma) 25%, transparent);
+    --shadow-plasma-hover: 0 2px 4px color-mix(in srgb, var(--accent-plasma) 25%, transparent), 0 14px 28px color-mix(in srgb, var(--accent-plasma) 40%, transparent);
+    --shadow-glow-cyan: 0 1px 2px color-mix(in srgb, var(--accent-cyan) 30%, transparent), 0 4px 12px color-mix(in srgb, var(--accent-cyan) 40%, transparent);
+    --ring-focus: 0 0 0 4px color-mix(in srgb, var(--accent-cyan) 15%, transparent);
+    --drop-icon: drop-shadow(0 2px 4px rgba(0,0,0,0.2)) drop-shadow(0 12px 16px rgba(0,0,0,0.3)); /* filter multicapa para emojis/iconos */
+    --inset-highlight: inset 0 1px 0 color-mix(in srgb, var(--white) 10%, transparent);
 
-    /* Spring Physics y Curvas Custom */
+    /* --- Superficies translúcidas (Glassmorphism) --- */
+    --blur-glass: 16px;
+    --border-glass-dark: color-mix(in srgb, var(--white) 15%, transparent);  /* fondos oscuros */
+    --border-glass-light: rgba(0, 0, 0, 0.05);                                /* fondos claros */
+    --overlay-dark: color-mix(in srgb, var(--dark-blue) 80%, transparent);   /* 80% garantiza 4.5:1 al texto blanco del modal */
+    --header-bg: color-mix(in srgb, var(--dark-blue) 85%, transparent);
+
+    /* --- Radios --- */
+    --radius-card: 24px;   /* Tarjetas, contenedores y paneles */
+    --radius-btn: 999px;   /* Botones, pills, badges y círculos */
+    --radius-md: 16px;     /* Superficies anidadas (miniaturas, canvas, inputs) */
+    --radius-sm: 12px;     /* Toasts y tooltips */
+
+    /* --- Escala de espaciado (múltiplos de 4px) --- */
+    --space-1: 4px;   --space-2: 8px;   --space-3: 12px;  --space-4: 16px;
+    --space-5: 20px;  --space-6: 24px;  --space-8: 32px;  --space-10: 40px;
+    --space-12: 48px; --space-16: 64px; --space-20: 80px; --space-24: 96px; --space-32: 128px;
+
+    /* --- Tipografía --- */
+    --font-heading: 'Poppins', sans-serif;  /* h1/h2 700 · navegación, CTAs y categorías 600 */
+    --font-body: 'Inter', sans-serif;       /* lectura 400 · datos, instrucciones y etiquetas 500 */
+    --fs-xs: 0.875rem;
+    --fs-sm: 0.9375rem;
+    --fs-base: 1rem;
+    --fs-md: 1.125rem;
+    --fs-lg: 1.25rem;
+    --fs-xl: 1.5rem;
+    --fs-2xl: clamp(2rem, 5vw, 2.75rem);
+    --fs-3xl: 3.5rem;
+    --fs-4xl: clamp(2.5rem, 8vw, 4.5rem);
+    --tracking-tight: -0.02em;   /* Títulos grandes */
+    --tracking-wide: 0.02em;
+    --tracking-label: 0.05em;    /* Etiquetas pequeñas / badges */
+
+    /* --- Spring Physics y Curvas Custom --- */
     --spring: cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Rebote sutil */
     --spring-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1); /* Rebote pronunciado */
     --smooth: cubic-bezier(0.32, 0.72, 0, 1); /* Fluidez total */
     --ease-float: cubic-bezier(0.45, 0, 0.55, 1); /* Loops decorativos (levitación) */
     --stagger: 60ms; /* Paso de escalonamiento (30-60ms) */
 
-    /* Duraciones tokenizadas (sin valores arbitrarios) */
+    /* --- Duraciones tokenizadas --- */
     --dur-press: 0.1s;  /* Compresión táctil :active */
     --dur-fast: 0.4s;   /* Hovers, focus, color */
     --dur-base: 0.6s;   /* Tarjetas, modales, overlays */
     --dur-slow: 0.8s;   /* Entradas de sección y reveals */
-
-    /* Tokens de acento */
-    --accent-cyan: #38BDF8;
-    --accent-cyan-strong: #0EA5E9;
-    --accent-violet: #C084FC;
-    --success: #10B981;
-    --text-muted: #94A3B8;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { font-family: var(--font-body); background-color: var(--bg-main); color: var(--text-main); line-height: 1.6; overflow-x: hidden; }
+body { font-family: var(--font-body); font-weight: 400; font-size: var(--fs-base); background-color: var(--bg-main); color: var(--text-main); line-height: 1.6; overflow-x: hidden; }
 
-/* Tipografía */
+/* =========================================
+   TIPOGRAFÍA
+========================================= */
 h1, h2, h3, h4, h5, h6, .category-title { font-family: var(--font-heading); color: var(--dark-blue); }
-h1, h2 { font-weight: 700; }
-h3, h4, .category-title { font-weight: 600; }
+h1, h2 { font-weight: 700; line-height: 1.2; }
+h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
 .btn, .nav a { font-family: var(--font-heading); font-weight: 600; }
 .long-text { font-family: var(--font-body); font-weight: 400; }
 .instruction, .stat-label { font-family: var(--font-body); font-weight: 500; }
 
 .container { width: 90%; max-width: 1200px; margin: 0 auto; }
-.section { padding: 6rem 0; }
+.section { padding: var(--space-24) 0; }
 .bg-light { background-color: var(--bg-main); }
 .section-dark { background-color: var(--dark-blue); color: var(--white); }
+
+/* Utilidades semánticas (reemplazan estilos inline del HTML) */
+.section-instruction { text-align: center; margin-bottom: var(--space-8); }
+.section-title--light { color: var(--white); }
+.subsection-title { text-align: center; margin-top: var(--space-8); color: var(--white); }
+.footer-title { color: var(--white); margin-bottom: var(--space-4); }
+.footer-text { max-width: 600px; margin: 0 auto var(--space-8); color: var(--text-muted); }
 
 /* =========================================
    SISTEMA DE LOGIN (MODAL)
 ========================================= */
 .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(15, 23, 42, 0.4); 
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: var(--overlay-dark);
+    backdrop-filter: blur(var(--blur-glass));
+    -webkit-backdrop-filter: blur(var(--blur-glass));
     display: flex; align-items: center; justify-content: center;
     z-index: 2000; transition: opacity var(--dur-base) var(--smooth);
     will-change: opacity;
@@ -79,10 +138,10 @@ h3, h4, .category-title { font-weight: 600; }
 
 .modal-content {
     text-align: center; max-width: 420px; width: 90%;
-    padding: 3rem 2.5rem; border-radius: var(--radius-card);
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    box-shadow: var(--shadow-premium), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+    padding: var(--space-12) var(--space-10); border-radius: var(--radius-card);
+    background: color-mix(in srgb, var(--white) 8%, transparent);
+    border: 1px solid var(--border-glass-dark);
+    box-shadow: var(--shadow-premium), var(--inset-highlight);
     transform: scale(0.95) translateY(20px);
     opacity: 0;
     transition: transform var(--dur-slow) var(--spring-bouncy), opacity var(--dur-base) var(--smooth);
@@ -95,21 +154,22 @@ h3, h4, .category-title { font-weight: 600; }
 }
 
 .modal-content input {
-    width: 100%; padding: 1.1rem; margin: 2rem 0;
-    border-radius: 14px; border: 1px solid rgba(255,255,255,0.2);
-    background: rgba(255,255,255,0.05); color: white;
-    font-family: var(--font-body); font-size: 1rem; outline: none;
+    width: 100%; padding: var(--space-4); margin: var(--space-8) 0;
+    border-radius: var(--radius-sm); border: 1px solid var(--border-glass-dark);
+    background: color-mix(in srgb, var(--white) 5%, transparent); color: var(--white);
+    font-family: var(--font-body); font-weight: 400; font-size: var(--fs-base); outline: none;
     transition: border-color var(--dur-fast) var(--smooth), background var(--dur-fast) var(--smooth), box-shadow var(--dur-fast) var(--smooth);
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-inset);
 }
 
-.modal-content input::placeholder { color: rgba(255,255,255,0.5); }
-.modal-content input:focus { 
-    border-color: var(--accent-cyan); 
-    background: rgba(255,255,255,0.1);
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1), 0 0 0 4px rgba(56, 189, 248, 0.15);
+.modal-content input::placeholder { color: color-mix(in srgb, var(--white) 65%, transparent); }
+.modal-content input:focus {
+    border-color: var(--accent-cyan);
+    background: color-mix(in srgb, var(--white) 10%, transparent);
+    box-shadow: var(--shadow-inset), var(--ring-focus);
 }
-.modal-content h2, .modal-content p { color: white; }
+.modal-content h2 { color: var(--white); margin-bottom: var(--space-2); }
+.modal-content p { color: var(--text-muted); }
 
 /* Shake de validación: keyframes con clase (solo transform) */
 .modal-content input.shake { animation: shake var(--dur-base) var(--smooth); }
@@ -134,25 +194,25 @@ h3, h4, .category-title { font-weight: 600; }
    SISTEMA DE TOASTS (Estilo Sonner)
 ========================================= */
 #toast-container {
-    position: fixed; bottom: 32px; right: 32px;
-    display: flex; flex-direction: column; gap: 12px;
+    position: fixed; bottom: var(--space-8); right: var(--space-8);
+    display: flex; flex-direction: column; gap: var(--space-3);
     z-index: 9999; pointer-events: none;
 }
 
 .toast {
     background: var(--white);
     color: var(--dark-blue);
-    padding: 14px 20px;
-    border-radius: 12px;
+    padding: var(--space-3) var(--space-5);
+    border-radius: var(--radius-sm);
     box-shadow: var(--shadow-premium);
     font-family: var(--font-body);
     font-weight: 500;
-    font-size: 0.95rem;
-    display: flex; align-items: center; gap: 12px;
+    font-size: var(--fs-sm);
+    display: flex; align-items: center; gap: var(--space-3);
     pointer-events: auto;
     will-change: transform, opacity;
     animation: toastEnter var(--dur-base) var(--spring-bouncy) backwards;
-    border: 1px solid rgba(0,0,0,0.05);
+    border: 1px solid var(--border-glass-light);
 }
 
 .toast.exiting {
@@ -160,7 +220,8 @@ h3, h4, .category-title { font-weight: 600; }
     animation: toastExit var(--dur-fast) var(--smooth) forwards;
 }
 
-.toast-icon { font-size: 1.2rem; }
+/* Caja fija 24x24 con centrado flex: el emoji no desalinea el texto adyacente */
+.toast-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: var(--space-6); height: var(--space-6); font-size: var(--fs-md); line-height: 1; }
 
 @keyframes toastEnter {
     from { opacity: 0; transform: translateY(30px) scale(0.9); }
@@ -176,56 +237,57 @@ h3, h4, .category-title { font-weight: 600; }
    BOTONES E INTERACCIONES
 ========================================= */
 .btn {
-    position: relative; display: inline-block; padding: 1rem 2.5rem; border-radius: var(--radius-btn);
+    position: relative; display: inline-block; padding: var(--space-4) var(--space-10); border-radius: var(--radius-btn);
     text-decoration: none; color: var(--white); border: none; cursor: pointer;
-    font-size: 1rem; font-weight: 600;
+    font-size: var(--fs-base); font-weight: 600; line-height: 1.5;
     transition: transform var(--dur-fast) var(--spring);
     will-change: transform;
 }
 /* El estado :active (scale 0.96) está unificado en 'COMPRESIÓN TÁCTIL' al final del archivo */
 
-.btn-nebula { background: var(--nebula-grad); box-shadow: 0 8px 20px rgba(168, 85, 247, 0.25); }
+.btn-nebula { background: var(--nebula-grad); color: var(--on-nebula); box-shadow: var(--shadow-nebula); }
+.btn-plasma { background: var(--plasma-grad); color: var(--on-plasma); box-shadow: var(--shadow-plasma); }
+
 /* Elevación en hover: la sombra grande vive en ::after y solo anima opacity (GPU) */
 .btn-nebula::after, .btn-plasma::after, .video-card::after, .glass::after {
     content: ''; position: absolute; inset: 0; border-radius: inherit;
     opacity: 0; pointer-events: none;
     transition: opacity var(--dur-base) var(--smooth); will-change: opacity;
 }
-.btn-nebula::after { box-shadow: 0 14px 28px rgba(168, 85, 247, 0.4); }
-.btn-plasma::after { box-shadow: 0 14px 28px rgba(126, 34, 206, 0.4); }
+.btn-nebula::after { box-shadow: var(--shadow-nebula-hover); }
+.btn-plasma::after { box-shadow: var(--shadow-plasma-hover); }
 .btn-nebula:hover, .btn-plasma:hover { transform: translateY(-4px); }
 .btn-nebula:hover::after, .btn-plasma:hover::after { opacity: 1; }
-
-.btn-plasma { background: var(--plasma-grad); box-shadow: 0 8px 20px rgba(126, 34, 206, 0.25); }
-
 
 /* =========================================
    HEADER & NAVEGACIÓN (Glassmorphism)
 ========================================= */
 .header {
-    background-color: rgba(15, 23, 42, 0.7); 
-    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background-color: var(--header-bg);
+    backdrop-filter: blur(var(--blur-glass)); -webkit-backdrop-filter: blur(var(--blur-glass));
+    border-bottom: 1px solid var(--border-glass-dark);
     position: sticky; top: 0; z-index: 1000;
-    padding: 1.2rem 0;
+    padding: var(--space-5) 0;
 }
 .header-content { display: flex; justify-content: space-between; align-items: center; }
-.logo { display: inline-block; transition: transform var(--dur-fast) var(--spring); color: var(--white); font-family: var(--font-heading); font-size: 1.5rem; font-weight: 700; text-decoration: none; letter-spacing: -0.5px;}
-.nav { display: flex; gap: 2rem; }
-.nav a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.95rem; transition: color var(--dur-fast) var(--smooth), transform var(--dur-fast) var(--spring); display: inline-block; }
+.logo { display: inline-block; transition: transform var(--dur-fast) var(--spring); color: var(--white); font-family: var(--font-heading); font-size: var(--fs-xl); font-weight: 700; line-height: 1.2; text-decoration: none; letter-spacing: var(--tracking-tight); }
+.nav { display: flex; gap: var(--space-8); }
+.nav a { color: color-mix(in srgb, var(--white) 80%, transparent); text-decoration: none; font-size: var(--fs-sm); transition: color var(--dur-fast) var(--smooth), transform var(--dur-fast) var(--spring); display: inline-block; }
 .nav a:hover { color: var(--accent-cyan); transform: translateY(-2px); }
-.user-profile { font-size: 0.95rem; color: var(--accent-cyan); font-weight: 600; display: flex; align-items: center; gap: 0.5rem;}
+/* Poppins 600 (Inter 600 no se importa y se sintetizaría) */
+.user-profile { font-family: var(--font-heading); font-size: var(--fs-sm); color: var(--accent-cyan); font-weight: 600; display: flex; align-items: center; gap: var(--space-2); }
 
 /* =========================================
    INICIO (HERO)
 ========================================= */
 .hero {
-    padding: 10rem 0 8rem 0; text-align: center;
-    background: radial-gradient(ellipse at top, #ffffff 0%, var(--bg-main) 100%);
+    padding: calc(var(--space-32) + var(--space-8)) 0 var(--space-32);
+    text-align: center;
+    background: radial-gradient(ellipse at top, var(--white) 0%, var(--bg-main) 100%);
     min-height: 80vh; display: flex; align-items: center;
 }
-.hero-title { font-size: 4.5rem; margin-bottom: 1.5rem; line-height: 1.1; letter-spacing: -1px; }
-.hero-desc { font-size: 1.25rem; color: var(--text-light); margin-bottom: 3rem; max-width: 700px; margin-inline: auto; }
+.hero-title { font-size: var(--fs-4xl); margin-bottom: var(--space-6); line-height: 1.1; letter-spacing: var(--tracking-tight); }
+.hero-desc { font-size: var(--fs-lg); color: var(--text-light); margin-bottom: var(--space-12); max-width: 700px; margin-inline: auto; }
 
 /* fill-mode 'backwards': al terminar no retiene el transform, así :hover/:active del .btn siguen funcionando */
 .fade-in-up { animation: fadeInUp var(--dur-slow) var(--smooth) var(--delay, 0s) backwards; will-change: transform, opacity; }
@@ -236,125 +298,132 @@ h3, h4, .category-title { font-weight: 600; }
 /* =========================================
    VIDEOS & DESAFÍOS (Tarjetas)
 ========================================= */
-.section-title { text-align: center; font-size: 2.75rem; margin-bottom: 3rem; letter-spacing: -0.5px; }
-.video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2.5rem; }
+.section-title { text-align: center; font-size: var(--fs-2xl); margin-bottom: var(--space-12); letter-spacing: -0.01em; }
+.video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-10); }
 
-.video-card { 
-    background: var(--white); border-radius: var(--radius-card); padding: 1.5rem; 
-    box-shadow: var(--shadow-soft); transition: transform var(--dur-base) var(--spring); 
+.video-card {
+    background: var(--white); border-radius: var(--radius-card); padding: var(--space-6);
+    box-shadow: var(--shadow-soft); transition: transform var(--dur-base) var(--spring);
     position: relative; will-change: transform; cursor: pointer;
 }
 .video-card::after { box-shadow: var(--shadow-premium); }
 .video-card:hover { transform: translateY(-12px); }
 .video-card:hover::after { opacity: 1; }
 
-
-.video-thumbnail { position: relative; border-radius: 16px; overflow: hidden; margin-bottom: 1.5rem; aspect-ratio: 16/9; }
+.video-thumbnail { position: relative; border-radius: var(--radius-md); overflow: hidden; margin-bottom: var(--space-6); aspect-ratio: 16/9; }
 .video-thumbnail img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(100%); transition: filter var(--dur-slow) var(--smooth), transform var(--dur-slow) var(--smooth); }
 .video-card:hover .video-thumbnail img { filter: grayscale(0%); transform: scale(1.08); }
 
 .play-btn {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
-    width: 64px; height: 64px; background: rgba(255, 255, 255, 0.9); border-radius: 50%;
+    width: var(--space-16); height: var(--space-16); background: color-mix(in srgb, var(--white) 90%, transparent); border-radius: var(--radius-btn);
     border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
     color: var(--dark-blue); transition: transform var(--dur-base) var(--spring-bouncy), background var(--dur-fast) var(--smooth);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15); opacity: 0; backdrop-filter: blur(4px);
+    box-shadow: var(--shadow-premium); opacity: 0;
+    backdrop-filter: blur(var(--blur-glass)); -webkit-backdrop-filter: blur(var(--blur-glass));
 }
+.play-btn svg { display: block; flex-shrink: 0; }
 .video-card:hover .play-btn { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 
-
-.challenge-grid { max-width: 800px; margin: 2rem auto 0 auto; }
+.challenge-grid { max-width: 800px; margin: var(--space-8) auto 0; }
 .challenge-card {
-    background: var(--white); border-radius: var(--radius-card); padding: 3rem;
-    box-shadow: var(--shadow-premium); text-align: center; border: 1px solid rgba(0,0,0,0.03);
+    background: var(--white); border-radius: var(--radius-card); padding: var(--space-12);
+    box-shadow: var(--shadow-premium); text-align: center; border: 1px solid var(--border-glass-light);
     /* Sin transform ni :active: esta tarjeta contiene el canvas de p5.js (no desfasar mouseX/mouseY) */
 }
 
-/* Contenedor P5.js */
+/* Contenedor P5.js: superficie neutra, la simulación es el foco visual */
 #p5-game-container {
-    display: flex; justify-content: center; margin-top: 2rem;
-    border-radius: 20px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05), inset 0 4px 12px rgba(0,0,0,0.03);
+    display: flex; justify-content: center; margin-top: var(--space-8);
+    border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-inset-light);
     background: var(--bg-main);
 }
-#p5-game-container canvas { border-radius: 20px; display: block; }
+#p5-game-container canvas { border-radius: var(--radius-md); display: block; }
 /* Excepción deliberada: sin :active scale en el canvas. El usuario arrastra para apuntar y escalar desfasaría mouseX/mouseY. */
 
 /* =========================================
    IMÁGENES INTERACTIVAS
 ========================================= */
-.interactive-diagram { 
-    max-width: 900px; margin: 0 auto; position: relative; border-radius: var(--radius-card); 
-    box-shadow: var(--shadow-premium); background: var(--white); padding: 1.5rem; border: 1px solid rgba(0,0,0,0.03);
+.interactive-diagram {
+    max-width: 900px; margin: 0 auto; position: relative; border-radius: var(--radius-card);
+    box-shadow: var(--shadow-premium); background: var(--white); padding: var(--space-6); border: 1px solid var(--border-glass-light);
 }
-.diagram-image { position: relative; border-radius: 16px; overflow: hidden;}
-.diagram-image img { width: 100%; display: block; border-radius: 16px; transition: transform var(--dur-slow) var(--smooth); }
+.diagram-image { position: relative; border-radius: var(--radius-md); overflow: hidden; }
+.diagram-image img { width: 100%; display: block; border-radius: var(--radius-md); transition: transform var(--dur-slow) var(--smooth); }
 .diagram-image:hover img { transform: scale(1.02); }
 
-.hotspot { position: absolute; width: 48px; height: 48px; transform: translate(-50%, -50%); cursor: pointer; }
-.hotspot-dot { 
-    width: 16px; height: 16px; background-color: var(--accent-cyan); border-radius: 50%; 
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2; 
-    transition: transform var(--dur-base) var(--spring-bouncy), background-color var(--dur-fast) var(--smooth); 
-    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.4);
+.hotspot { position: absolute; width: var(--space-12); height: var(--space-12); transform: translate(-50%, -50%); cursor: pointer; }
+.hotspot-dot {
+    width: var(--space-4); height: var(--space-4); background-color: var(--accent-cyan); border-radius: var(--radius-btn);
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2;
+    transition: transform var(--dur-base) var(--spring-bouncy), background-color var(--dur-fast) var(--smooth);
+    box-shadow: var(--shadow-glow-cyan);
 }
-.hotspot-ripple { 
-    width: 100%; height: 100%; background-color: rgba(56, 189, 248, 0.4); border-radius: 50%; 
-    position: absolute; top: 0; left: 0; animation: ripple 2.5s infinite var(--smooth); z-index: 1; 
+.hotspot-ripple {
+    width: 100%; height: 100%; background-color: color-mix(in srgb, var(--accent-cyan) 40%, transparent); border-radius: var(--radius-btn);
+    position: absolute; top: 0; left: 0; animation: ripple 2.5s infinite var(--smooth); z-index: 1;
 }
 @keyframes ripple { 0% { transform: scale(0.3); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
 .hotspot:hover .hotspot-dot, .hotspot:focus-visible .hotspot-dot { transform: translate(-50%, -50%) scale(1.5); background-color: var(--accent-cyan-strong); }
 
 .tooltip {
-    position: absolute; top: -70px; left: 50%; transform: translateX(-50%) scale(0.8) translateY(10px); opacity: 0;
-    background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    color: var(--white); padding: 0.85rem 1.25rem; border-radius: 12px;
-    font-size: 0.95rem; font-weight: 500; white-space: nowrap; pointer-events: none; z-index: 10;
+    position: absolute; top: -72px; left: 50%; transform: translateX(-50%) scale(0.8) translateY(10px); opacity: 0;
+    background: color-mix(in srgb, var(--dark-blue) 90%, transparent);
+    backdrop-filter: blur(var(--blur-glass)); -webkit-backdrop-filter: blur(var(--blur-glass));
+    color: var(--white); padding: var(--space-3) var(--space-5); border-radius: var(--radius-sm);
+    font-size: var(--fs-sm); font-weight: 500; line-height: 1.4; white-space: nowrap; pointer-events: none; z-index: 10;
     transition: transform var(--dur-base) var(--spring-bouncy), opacity var(--dur-fast) var(--smooth);
-    box-shadow: var(--shadow-premium); border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: var(--shadow-premium); border: 1px solid var(--border-glass-dark);
     will-change: transform, opacity;
 }
-.tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border-width: 6px; border-style: solid; border-color: rgba(15, 23, 42, 0.9) transparent transparent transparent; }
+.tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border-width: 6px; border-style: solid; border-color: color-mix(in srgb, var(--dark-blue) 90%, transparent) transparent transparent transparent; }
 .hotspot:hover .tooltip, .hotspot:focus-visible .tooltip { transform: translateX(-50%) scale(1) translateY(0); opacity: 1; }
 
 /* =========================================
    GAMIFICACIÓN (Glassmorphism)
 ========================================= */
-.gamification-dashboard { display: flex; flex-direction: column; gap: 3rem; }
+.gamification-dashboard { display: flex; flex-direction: column; gap: var(--space-12); }
 
 .glass {
-    background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: var(--shadow-glass), inset 0 1px 0 rgba(255,255,255,0.1); 
-    border-radius: var(--radius-card); padding: 2.5rem 2rem;
+    background: color-mix(in srgb, var(--white) 3%, transparent);
+    backdrop-filter: blur(var(--blur-glass)); -webkit-backdrop-filter: blur(var(--blur-glass));
+    border: 1px solid var(--border-glass-dark); box-shadow: var(--shadow-glass), var(--inset-highlight);
+    border-radius: var(--radius-card); padding: var(--space-10) var(--space-8);
     transition: transform var(--dur-base) var(--spring);
     position: relative; will-change: transform; cursor: pointer;
 }
-.glass::after { box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
+.glass::after { box-shadow: var(--shadow-glass-hover); }
 .glass:hover { transform: translateY(-8px); }
 .glass:hover::after { opacity: 1; }
 
-
-.dashboard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; }
+.dashboard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-8); }
 .stat-card { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-.stat-value { font-size: 3.5rem; font-weight: 700; font-family: var(--font-heading); background: var(--nebula-grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; transition: transform var(--dur-base) var(--spring-bouncy); will-change: transform;}
-.stat-label { font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; font-weight: 600;}
+.stat-value { font-size: var(--fs-3xl); font-weight: 700; line-height: 1.1; font-family: var(--font-heading); background: var(--nebula-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: var(--space-2); transition: transform var(--dur-base) var(--spring-bouncy); will-change: transform; }
+.stat-label { font-size: var(--fs-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: var(--tracking-label); font-weight: 500; line-height: 1.4; }
 
-.batteries { display: flex; gap: 0.75rem; color: var(--success); margin-bottom: 1rem; }
-.battery { transition: transform var(--dur-fast) var(--spring-bouncy), opacity var(--dur-fast) var(--smooth); will-change: transform;}
+/* Iconos de métricas (XP, vidas, racha): cajas fijas centradas, sin saltos respecto al texto */
+.metric-icon { display: block; flex-shrink: 0; width: var(--space-12); height: var(--space-12); margin-bottom: var(--space-4); }
+.xp-icon { color: var(--accent-cyan); }
+
+.batteries { display: flex; align-items: center; gap: var(--space-3); height: var(--space-12); color: var(--success); margin-bottom: var(--space-4); }
+.battery { display: flex; align-items: center; justify-content: center; width: var(--space-8); height: var(--space-8); transition: transform var(--dur-fast) var(--spring-bouncy), opacity var(--dur-fast) var(--smooth); will-change: transform; }
+.battery svg { display: block; }
 .battery:hover { transform: scale(1.2) rotate(5deg); }
-.battery.empty { color: var(--text-main); opacity: 0.3; }
+.battery.empty { color: var(--text-muted); opacity: 0.3; }
 
-.flame-icon { color: var(--accent-violet); margin-bottom: 1rem; filter: drop-shadow(0 0 20px rgba(192, 132, 252, 0.4)); animation: float 2s var(--ease-float) infinite alternate; will-change: transform;}
+.flame-icon { color: var(--accent-violet); filter: drop-shadow(0 0 20px color-mix(in srgb, var(--accent-violet) 40%, transparent)); animation: float 2s var(--ease-float) infinite alternate; will-change: transform; }
 @keyframes float { from { transform: translateY(0); } to { transform: translateY(-12px); } }
 
-.badges-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2.5rem; }
+.badges-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-10); }
 .badge { text-align: center; position: relative; overflow: hidden; }
-.badge-icon { font-size: 4.5rem; margin-bottom: 1.5rem; filter: drop-shadow(0 12px 16px rgba(0,0,0,0.3)); transition: transform var(--dur-base) var(--spring-bouncy); will-change: transform;}
+.badge h4 { color: var(--white); letter-spacing: var(--tracking-wide); }
+.badge-icon { display: flex; align-items: center; justify-content: center; width: var(--space-24); height: var(--space-24); margin: 0 auto var(--space-6); font-size: 4.5rem; line-height: 1; filter: var(--drop-icon); transition: transform var(--dur-base) var(--spring-bouncy); will-change: transform; }
 .glass:hover .badge-icon { transform: scale(1.15) translateY(-5px); }
 
 /* Efecto metálico sutil y realista */
 .badge-shiny .shine {
     position: absolute; top: 0; left: 0; width: 50%; height: 100%;
-    background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
+    background: linear-gradient(to right, transparent 0%, color-mix(in srgb, var(--white) 30%, transparent) 50%, transparent 100%);
     transform: translateX(-300%) skewX(-20deg); will-change: transform; animation: shine 5s infinite var(--smooth); pointer-events: none;
 }
 @keyframes shine {
@@ -365,11 +434,11 @@ h3, h4, .category-title { font-weight: 600; }
 /* =========================================
    FOOTER
 ========================================= */
-.footer { background-color: var(--dark-blue); color: var(--text-light); text-align: center; padding: 5rem 0 3rem 0; position: relative; }
-.footer::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent); }
+.footer { background-color: var(--dark-blue); color: var(--text-muted); text-align: center; padding: var(--space-20) 0 var(--space-12); position: relative; }
+.footer::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 1px; background: linear-gradient(90deg, transparent, var(--border-glass-dark), transparent); }
 .footer-content { display: flex; flex-direction: column; align-items: center; }
-.divider { width: 40px; height: 4px; background: var(--nebula-grad); margin: 2rem auto; border-radius: 4px; opacity: 0.8;}
-.author-credits { color: var(--white); font-weight: 600; font-size: 1.1rem; font-family: var(--font-heading); margin-bottom: 1.5rem; letter-spacing: 0.5px;}
+.divider { width: var(--space-10); height: var(--space-1); background: var(--nebula-grad); margin: var(--space-8) auto; border-radius: var(--radius-btn); opacity: 0.8; }
+.author-credits { color: var(--white); font-weight: 600; font-size: var(--fs-md); font-family: var(--font-heading); margin-bottom: var(--space-6); letter-spacing: var(--tracking-wide); }
 
 /* =========================================
    REVEAL ON SCROLL (clases, no estilos inline)
@@ -414,7 +483,7 @@ h3, h4, .category-title { font-weight: 600; }
 .video-card:focus-visible, .glass:focus-visible {
     outline: 2px solid var(--accent-cyan); outline-offset: 4px;
 }
-.hotspot:focus-visible { border-radius: 50%; }
+.hotspot:focus-visible { border-radius: var(--radius-btn); }
 /* El play-btn nace con opacity 0: con teclado debe volverse visible al recibir foco */
 .play-btn:focus-visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 
