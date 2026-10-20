@@ -1,5 +1,11 @@
 /**
- * NOVAFÍSICA - Script Principal & Gestor de Estado (Emil Kowalski Edition)
+ * NOVAFÍSICA - Controlador de interfaz (Emil Kowalski Edition)
+ *
+ * Orden de carga (index.html): Cinematica.js → GestorProgreso.js → SimuladorParabolico.js → script.js
+ *
+ *   GestorProgreso      → estado y localStorage (sin DOM)
+ *   SimuladorParabolico → canvas p5.js (sin estado de usuario)
+ *   script.js           → une las piezas: toasts, render del progreso, login y scroll
  */
 
 // ==========================================
@@ -12,8 +18,18 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const tokenCSS = (nombre) => getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
 
 class ToastSystem {
+    static MAX_VISIBLES = 4;
+    static DURACION_MS = 4000;
+    static RESPALDO_SALIDA_MS = 800;
+    static ICONOS = Object.freeze({ success: '🏆', error: '💔', info: '✨' });
+
     constructor() {
         this.container = document.getElementById('toast-container');
+        if (this.container) {
+            // Lectores de pantalla anuncian los avisos sin robar el foco
+            this.container.setAttribute('role', 'status');
+            this.container.setAttribute('aria-live', 'polite');
+        }
     }
 
     /**
@@ -40,156 +56,241 @@ class ToastSystem {
         });
     }
 
+    /** Inicia la animación de salida y limpia el DOM al terminar (con respaldo si no llega animationend). */
+    _retirar(toast) {
+        if (toast.classList.contains('exiting')) return;
+        clearTimeout(toast._temporizador);
+        toast.classList.add('exiting');
+
+        let retirado = false;
+        const eliminar = () => {
+            if (retirado) return;
+            retirado = true;
+            this._flip(() => toast.remove());
+        };
+        toast.addEventListener('animationend', eliminar, { once: true });
+        setTimeout(eliminar, ToastSystem.RESPALDO_SALIDA_MS);
+    }
+
     show(message, type = 'info') {
         if (!this.container) return;
-        
+
+        // Tope de avisos simultáneos: el más antiguo se retira para no saturar la pantalla
+        const activos = [...this.container.children].filter(el => !el.classList.contains('exiting'));
+        if (activos.length >= ToastSystem.MAX_VISIBLES) this._retirar(activos[0]);
+
         const toast = document.createElement('div');
         toast.className = 'toast';
-        
-        // Iconos basados en el tipo
-        let icon = '✨';
-        if (type === 'success') icon = '🏆';
-        if (type === 'error') icon = '💔';
-        
-        toast.innerHTML = `<span class="toast-icon">${icon}</span> <span>${message}</span>`;
-        
+
+        const icono = document.createElement('span');
+        icono.className = 'toast-icon';
+        icono.textContent = ToastSystem.ICONOS[type] ?? ToastSystem.ICONOS.info;
+
+        const texto = document.createElement('span');
+        texto.textContent = message; // textContent: el mensaje nunca se interpreta como HTML
+
+        toast.append(icono, document.createTextNode(' '), texto);
         this._flip(() => this.container.appendChild(toast));
 
         // Remover automáticamente después de 4 segundos
-        setTimeout(() => {
-            toast.classList.add('exiting');
-            // Escuchar el final de la animación para limpiar el DOM
-            toast.addEventListener('animationend', () => {
-                this._flip(() => toast.remove());
-            }, { once: true });
-        }, 4000);
+        toast._temporizador = setTimeout(() => this._retirar(toast), ToastSystem.DURACION_MS);
     }
 }
 
 const toast = new ToastSystem();
 
 // ==========================================
-// 2. GESTOR DE PROGRESO (LOCALSTORAGE)
+// 2. INTERFAZ DEL PROGRESO (render + avisos)
 // ==========================================
-class GestorProgreso {
-    constructor() {
-        this.estado = null;
-    }
+/**
+ * Traduce los eventos de GestorProgreso en DOM y toasts.
+ * Solo lee el estado (copia inmutable): jamás lo modifica ni toca localStorage.
+ */
+class InterfazProgreso {
+    static INSIGNIAS = Object.freeze({
+        explorador: { icono: '🌌', titulo: 'Explorador Cuántico' },
+        francotirador: { icono: '🎯', titulo: 'Tiro Parabólico' }
+    });
+    static ICONO_BATERIA = '<svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M16 20H8V6h8v14zm2-16h-3V2h-6v2H6v18h12V4z"/></svg>';
 
-    iniciarSesion(email) {
-        const dataGuardada = localStorage.getItem(`novafisica_${email}`);
-        if (dataGuardada) {
-            this.estado = JSON.parse(dataGuardada);
-            toast.show('Progreso cargado exitosamente. ¡Bienvenido de vuelta!', 'success');
-        } else {
-            // Estado inicial por defecto
-            this.estado = {
-                email: email,
-                xp: 0,
-                vidas: 3,
-                racha: 1,
-                insignias: ['explorador']
-            };
-            this.guardar();
-            toast.show('Nueva aventura iniciada. ¡Exploremos el universo!', 'info');
-        }
-        this.actualizarUI();
-    }
-
-    guardar() {
-        if (this.estado) {
-            localStorage.setItem(`novafisica_${this.estado.email}`, JSON.stringify(this.estado));
-        }
-    }
-
-    sumarXP(cantidad) {
-        if (!this.estado) return;
-        this.estado.xp += cantidad;
-        
-        // Pulso de XP: la animación vive en CSS (.is-bumping), JS solo alterna la clase
-        const xpElement = document.getElementById('ui-xp');
-        if (xpElement) {
-            requestAnimationFrame(() => {
-                xpElement.classList.add('is-bumping');
-                setTimeout(() => xpElement.classList.remove('is-bumping'), 400);
-            });
-        }
-        
-        toast.show(`+${cantidad} XP Obtenida`, 'success');
-        this.guardar();
-        this.actualizarUI();
-    }
-
-    restarVida() {
-        if (!this.estado || this.estado.vidas <= 0) return;
-        this.estado.vidas -= 1;
-        toast.show('¡Cuidado! Has perdido una vida.', 'error');
-        this.guardar();
-        this.actualizarUI();
-    }
-
-    actualizarUI() {
-        if (!this.estado) return;
-
-        // Header
-        const profileDisplay = document.getElementById('user-profile-display');
-        if (profileDisplay) {
-            profileDisplay.textContent = `Explorador: ${this.estado.email.split('@')[0]}`;
-        }
-
-        // Stats
-        document.getElementById('ui-xp').textContent = `${this.estado.xp} XP`;
-        document.getElementById('ui-racha').textContent = `${this.estado.racha} Días`;
-
-        // Vidas
-        const vidasContainer = document.getElementById('ui-vidas');
-        vidasContainer.innerHTML = '';
-        const bateriaSVG = `<svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M16 20H8V6h8v14zm2-16h-3V2h-6v2H6v18h12V4z"/></svg>`;
-        for (let i = 0; i < 3; i++) {
-            const span = document.createElement('span');
-            span.innerHTML = bateriaSVG;
-            span.className = i < this.estado.vidas ? 'battery' : 'battery empty';
-            vidasContainer.appendChild(span);
-        }
-
-        // Insignias
-        const insigniasContainer = document.getElementById('ui-insignias');
-        insigniasContainer.innerHTML = '';
-        
-        const diccionarioInsignias = {
-            'explorador': { icono: '🌌', titulo: 'Explorador Cuántico' },
-            'francotirador': { icono: '🎯', titulo: 'Tiro Parabólico' }
+    constructor(avisos) {
+        this._avisos = avisos;
+        this._elementos = {
+            perfil: document.getElementById('user-profile-display'),
+            xp: document.getElementById('ui-xp'),
+            racha: document.getElementById('ui-racha'),
+            vidas: document.getElementById('ui-vidas'),
+            insignias: document.getElementById('ui-insignias')
         };
+        this._firmaVidas = null;
+        this._firmaInsignias = null;
+    }
 
-        this.estado.insignias.forEach(ins => {
-            const info = diccionarioInsignias[ins];
-            if (info) {
-                const badgeHtml = `
-                    <div class="badge glass">
-                        <div class="badge-icon">${info.icono}</div>
-                        <h4>${info.titulo}</h4>
-                    </div>
-                `;
-                insigniasContainer.innerHTML += badgeHtml;
-            }
+    /** Oyente de GestorProgreso: refresca la vista y avisa del hito. */
+    reaccionar(evento, estado) {
+        if (!estado) return;
+        this.renderizar(estado);
+        this._avisar(evento, estado);
+    }
+
+    renderizar(estado) {
+        const { perfil, xp, racha } = this._elementos;
+        if (perfil) perfil.textContent = `Explorador: ${estado.email.split('@')[0]}`;
+        if (xp) xp.textContent = `${estado.xp} XP`;
+        if (racha) racha.textContent = `${estado.racha} Días`;
+
+        this._renderizarVidas(estado.vidas);
+        this._renderizarInsignias(estado.insignias);
+    }
+
+    /** Solo reconstruye el DOM si las vidas cambiaron (evita reiniciar hovers/animaciones). */
+    _renderizarVidas(vidas) {
+        const { vidas: contenedor } = this._elementos;
+        if (!contenedor || this._firmaVidas === vidas) return;
+        this._firmaVidas = vidas;
+
+        const baterias = Array.from({ length: GestorProgreso.VIDAS_MAX }, (_, i) => {
+            const bateria = document.createElement('span');
+            bateria.className = i < vidas ? 'battery' : 'battery empty';
+            bateria.innerHTML = InterfazProgreso.ICONO_BATERIA; // constante propia, sin datos de usuario
+            return bateria;
         });
+        contenedor.replaceChildren(...baterias);
+    }
 
-        // Revisar si gana nueva insignia
-        if (this.estado.xp >= 500 && !this.estado.insignias.includes('francotirador')) {
-            this.estado.insignias.push('francotirador');
-            this.guardar();
-            toast.show('¡Insignia Desbloqueada: Tiro Parabólico!', 'success');
-            
-            // Usamos rAF para deferir la renderización y evitar layout thrashing
-            requestAnimationFrame(() => this.actualizarUI()); 
+    _renderizarInsignias(ids) {
+        const { insignias: contenedor } = this._elementos;
+        const firma = ids.join('|');
+        if (!contenedor || this._firmaInsignias === firma) return;
+        this._firmaInsignias = firma;
+
+        const tarjetas = ids
+            .filter((id) => InterfazProgreso.INSIGNIAS[id])
+            .map((id) => {
+                const { icono, titulo } = InterfazProgreso.INSIGNIAS[id];
+                const tarjeta = document.createElement('div');
+                tarjeta.className = 'badge glass';
+
+                const iconoEl = document.createElement('div');
+                iconoEl.className = 'badge-icon';
+                iconoEl.textContent = icono;
+
+                const tituloEl = document.createElement('h4');
+                tituloEl.textContent = titulo;
+
+                tarjeta.append(iconoEl, tituloEl);
+                return tarjeta;
+            });
+        contenedor.replaceChildren(...tarjetas);
+    }
+
+    /** Pulso de XP: la animación vive en CSS (.is-bumping), JS solo alterna la clase */
+    _pulsarXP() {
+        const xp = this._elementos.xp;
+        if (!xp) return;
+        requestAnimationFrame(() => {
+            xp.classList.add('is-bumping');
+            setTimeout(() => xp.classList.remove('is-bumping'), 400);
+        });
+    }
+
+    _avisar(evento) {
+        const aviso = (mensaje, tipo) => this._avisos.show(mensaje, tipo);
+        switch (evento.tipo) {
+            case 'sesion':
+                if (evento.nueva) aviso('Nueva aventura iniciada. ¡Exploremos el universo!', 'info');
+                else aviso('Progreso cargado exitosamente. ¡Bienvenido de vuelta!', 'success');
+                break;
+            case 'xp':
+                this._pulsarXP();
+                aviso(`+${evento.cantidad} XP Obtenida`, 'success');
+                break;
+            case 'insignia': {
+                const info = InterfazProgreso.INSIGNIAS[evento.id];
+                if (info) aviso(`¡Insignia Desbloqueada: ${info.titulo}!`, 'success');
+                break;
+            }
+            case 'vida-perdida':
+                // Con la última vida se muestra solo el aviso de "agotadas"
+                if (evento.restantes > 0) aviso('¡Cuidado! Has perdido una vida.', 'error');
+                break;
+            case 'vidas-agotadas':
+                aviso(MENSAJE_SIN_VIDAS, 'error');
+                break;
+            case 'vidas-recargadas':
+                aviso('Energía vital recargada. ¡Nuevo día, nuevos retos!', 'info');
+                break;
+            case 'racha-incrementada':
+                aviso(`¡Racha de ${evento.racha} días! Sigue así.`, 'success');
+                break;
+            case 'racha-reiniciada':
+                aviso('Perdiste tu racha. ¡Empieza una nueva hoy!', 'error');
+                break;
+            case 'datos-corruptos':
+                aviso('Tu progreso guardado estaba dañado: iniciamos uno nuevo.', 'error');
+                break;
+            case 'guardado-fallido':
+                aviso('No se pudo guardar tu progreso en este navegador.', 'error');
+                break;
+            case 'sincronizado':
+                aviso('Progreso actualizado desde otra pestaña.', 'info');
+                break;
         }
     }
 }
 
+// ==========================================
+// 3. ENSAMBLAJE: ESTADO ↔ INTERFAZ ↔ SIMULADOR
+// ==========================================
+const MENSAJE_SIN_VIDAS = 'Sin energía vital. Vuelve mañana para recargarla.';
+const XP_POR_ACIERTO = 100;
+
 const gestor = new GestorProgreso();
+const interfaz = new InterfazProgreso(toast);
+let simulador = null;
+
+// Flujo único de datos: acción → GestorProgreso (guarda) → evento → interfaz (DOM + toast) → simulador (bloqueo)
+gestor.suscribir((evento, estado) => {
+    interfaz.reaccionar(evento, estado);
+    sincronizarBloqueoSimulador();
+});
+
+function sincronizarBloqueoSimulador() {
+    if (simulador) simulador.establecerBloqueo(!gestor.tieneVidas, MENSAJE_SIN_VIDAS);
+}
+
+function leerColoresSimulador() {
+    return {
+        fondo: tokenCSS('--bg-main'),
+        estructura: tokenCSS('--dark-blue'),
+        objetivo: tokenCSS('--accent-purple'),
+        canon: tokenCSS('--accent-cyan'),
+        guia: tokenCSS('--text-muted'),
+        mensaje: tokenCSS('--text-light')
+    };
+}
+
+/** Idempotente: una sola instancia del simulador por sesión. */
+function iniciarSimulador() {
+    if (simulador) return;
+    if (typeof p5 === 'undefined') {
+        toast.show('No se pudo cargar el simulador (p5.js). Revisa tu conexión.', 'error');
+        return;
+    }
+
+    simulador = new SimuladorParabolico({
+        contenedor: document.getElementById('p5-game-container'),
+        colores: leerColoresSimulador(),
+        alResolver: (resultado) => {
+            if (resultado === 'acierto') gestor.sumarXP(XP_POR_ACIERTO);
+            else gestor.restarVida();
+        }
+    });
+    sincronizarBloqueoSimulador();
+}
 
 // ==========================================
-// 3. INICIALIZACIÓN DEL DOM Y LÓGICA UI
+// 4. INICIALIZACIÓN DEL DOM Y LÓGICA UI
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     initLogin();
@@ -203,22 +304,11 @@ function initLogin() {
     const btnLogin = document.getElementById('btn-login');
     const emailInput = document.getElementById('user-email');
 
-    btnLogin.addEventListener('click', () => {
+    const ingresar = () => {
         const email = emailInput.value.trim();
-        if (email && email.includes('@')) {
-            gestor.iniciarSesion(email);
-            
-            // display (is-rendered) y opacity (visible) en frames distintos: así el fade-in sí se anima
-            mainContent.classList.add('is-rendered');
-            modal.classList.add('hidden');
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => mainContent.classList.add('visible'));
-            });
-            
-            setTimeout(initP5Game, 400);
-        } else {
+        if (!GestorProgreso.esEmailValido(email)) {
             toast.show('Ingresa un correo electrónico válido para continuar.', 'error');
-            
+
             // Shake de validación: keyframes en CSS; se reinicia la clase para poder repetirlo
             emailInput.classList.remove('shake');
             void emailInput.offsetWidth; // fuerza reflow para reiniciar la animación
@@ -226,7 +316,26 @@ function initLogin() {
             emailInput.addEventListener('animationend', () => {
                 emailInput.classList.remove('shake');
             }, { once: true });
+            return;
         }
+
+        btnLogin.disabled = true; // evita doble envío mientras transiciona
+        gestor.iniciarSesion(email);
+
+        // display (is-rendered) y opacity (visible) en frames distintos: así el fade-in sí se anima
+        mainContent.classList.add('is-rendered');
+        modal.classList.add('hidden');
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                mainContent.classList.add('visible');
+                iniciarSimulador(); // el contenedor ya tiene layout: el canvas toma su ancho real
+            });
+        });
+    };
+
+    btnLogin.addEventListener('click', ingresar);
+    emailInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') ingresar();
     });
 }
 
@@ -289,141 +398,4 @@ function initScrollAnimations() {
         if (contenedorCanvas && el.contains(contenedorCanvas)) el.classList.add('reveal--fade');
         observer.observe(el);
     });
-}
-
-// ==========================================
-// 4. INTEGRACIÓN DE JUEGO (p5.js)
-// ==========================================
-function initP5Game() {
-    // Evitar instanciaciones múltiples
-    if(window.p5Instance) return;
-
-    const sketch = (p) => {
-        let proyectil;
-        let objetivo;
-        let disparado = false;
-        let gravedad;
-        let estadoMensaje = "Arrastra y suelta para disparar.";
-        let paleta; // Colores del canvas, leídos de los tokens de styles.css
-
-        
-        p.setup = () => {
-            const container = document.getElementById('p5-game-container');
-            const w = Math.min(container.offsetWidth, 800);
-            const canvas = p.createCanvas(w, 400);
-            canvas.parent('p5-game-container');
-            
-            gravedad = p.createVector(0, 0.25); // Gravedad ajustada
-            paleta = {
-                fondo: p.color(tokenCSS('--bg-main')),
-                estructura: p.color(tokenCSS('--dark-blue')),
-                objetivo: p.color(tokenCSS('--accent-purple')),
-                canon: p.color(tokenCSS('--accent-cyan')),
-                tension: p.color(tokenCSS('--text-muted')),
-                mensaje: p.color(tokenCSS('--text-light'))
-            };
-            resetJuego();
-        };
-
-        p.draw = () => {
-            // p5.js usa rAF internamente de forma muy eficiente para draw()
-            p.background(paleta.fondo);
-            
-            // Suelo
-            p.fill(paleta.estructura);
-            p.noStroke();
-            p.rect(0, p.height - 20, p.width, 20);
-
-            // Dibujar objetivo
-            p.fill(paleta.objetivo);
-            p.rect(objetivo.x, objetivo.y, objetivo.w, objetivo.h, 4); // Bordes redondeados
-
-            // Dibujar cañón base
-            p.fill(paleta.canon);
-            p.arc(50, p.height - 20, 60, 60, p.PI, p.TWO_PI);
-
-            // Lógica del proyectil
-            if (disparado) {
-                proyectil.vel.add(gravedad);
-                proyectil.pos.add(proyectil.vel);
-                
-                // Colisión bordes
-                if (proyectil.pos.y > p.height || proyectil.pos.x > p.width || proyectil.pos.x < 0) {
-                    fallo();
-                }
-                
-                // Colisión objetivo (AABB simple)
-                if (proyectil.pos.x > objetivo.x && proyectil.pos.x < objetivo.x + objetivo.w &&
-                    proyectil.pos.y > objetivo.y && proyectil.pos.y < objetivo.y + objetivo.h) {
-                    acierto();
-                }
-            } else if (p.mouseIsPressed) {
-                // Dibujar línea de tensión
-                p.stroke(paleta.tension);
-                p.strokeWeight(3);
-                p.line(50, p.height - 20, p.mouseX, p.mouseY);
-            }
-
-            // Dibujar proyectil
-            p.fill(paleta.estructura);
-            p.noStroke();
-            p.circle(proyectil.pos.x, proyectil.pos.y, 16);
-
-            // Mensaje estado
-            p.fill(paleta.mensaje);
-            p.textSize(15);
-            p.textAlign(p.CENTER);
-            p.textFont('Inter'); // Tipografía del proyecto
-            p.text(estadoMensaje, p.width / 2, 35);
-        };
-
-        p.mouseReleased = () => {
-            if (!disparado && p.mouseX > 0 && p.mouseX < p.width && p.mouseY > 0 && p.mouseY < p.height) {
-                disparado = true;
-                let fuerza = p.createVector(50 - p.mouseX, (p.height - 20) - p.mouseY);
-                fuerza.mult(0.12); // Factor de resorte ajustado
-                proyectil.vel = fuerza;
-                estadoMensaje = "¡Proyectil en vuelo!";
-            }
-        };
-
-        function acierto() {
-            estadoMensaje = "¡Impacto Perfecto!";
-            disparado = false;
-            gestor.sumarXP(100);
-            setTimeout(resetJuego, 1200);
-        }
-
-        function fallo() {
-            estadoMensaje = "Fallaste. Intenta de nuevo.";
-            disparado = false;
-            gestor.restarVida();
-            setTimeout(resetJuego, 1200);
-        }
-
-        function resetJuego() {
-            proyectil = {
-                pos: p.createVector(50, p.height - 20),
-                vel: p.createVector(0, 0)
-            };
-            objetivo = {
-                x: p.random(p.width / 2 + 50, p.width - 60),
-                y: p.height - 60,
-                w: 45,
-                h: 40
-            };
-            estadoMensaje = "Arrastra y suelta para disparar.";
-            disparado = false;
-        }
-        
-        p.windowResized = () => {
-            const container = document.getElementById('p5-game-container');
-            if(container) {
-                const w = Math.min(container.offsetWidth, 800);
-                p.resizeCanvas(w, 400);
-            }
-        };
-    };
-
-    window.p5Instance = new p5(sketch);
 }
