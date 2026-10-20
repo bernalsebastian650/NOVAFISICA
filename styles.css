@@ -34,6 +34,8 @@
     --shadow-premium: 0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.12);
     --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
     --shadow-glass-hover: 0 4px 16px rgba(0,0,0,0.2), 0 16px 40px rgba(0,0,0,0.4);
+    /* Figma "Group 9": 0 12px 24px (17,17,17 @5%) → capa ambiental + capa de contacto (multicapa, sin sombra plana) */
+    --shadow-stat: 0 1px 2px rgba(0,0,0,0.10), 0 12px 24px rgba(0,0,0,0.20);
     --shadow-inset: inset 0 1px 2px rgba(0,0,0,0.1), inset 0 2px 4px rgba(0,0,0,0.1);
     --shadow-inset-light: inset 0 0 0 1px rgba(0,0,0,0.05), inset 0 4px 12px rgba(0,0,0,0.03);
     --shadow-nebula: 0 1px 2px color-mix(in srgb, var(--accent-purple) 20%, transparent), 0 8px 20px color-mix(in srgb, var(--accent-purple) 25%, transparent);
@@ -51,6 +53,7 @@
     --border-glass-light: rgba(0, 0, 0, 0.05);                                /* fondos claros */
     --overlay-dark: color-mix(in srgb, var(--dark-blue) 80%, transparent);   /* 80% garantiza 4.5:1 al texto blanco del modal */
     --header-bg: color-mix(in srgb, var(--dark-blue) 85%, transparent);
+    --glass-fill-stat: color-mix(in srgb, var(--white) 6%, transparent);   /* relleno translúcido de tarjetas de métricas */
 
     /* --- Radios --- */
     --radius-card: 24px;   /* Tarjetas, contenedores y paneles */
@@ -397,9 +400,13 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
 .glass:hover::after { opacity: 1; }
 
 .dashboard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-8); }
-.stat-card { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.stat-card { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    /* Figma "Group 9": r12 → --radius-card (12px queda reservado a toasts); padding lateral 15.5 → --space-4 */
+    padding: var(--space-8) var(--space-4); border-radius: var(--radius-card);
+    background: var(--glass-fill-stat); box-shadow: var(--shadow-stat), var(--inset-highlight); }
 .stat-value { font-size: var(--fs-3xl); font-weight: 700; line-height: 1.1; font-family: var(--font-heading); background: var(--nebula-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: var(--space-2); transition: transform var(--dur-base) var(--spring-bouncy); will-change: transform; }
-.stat-label { font-size: var(--fs-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: var(--tracking-label); font-weight: 500; line-height: 1.4; }
+.stat-label { align-self: stretch; padding-top: var(--space-3); border-top: 1px solid var(--border-glass-dark); /* divisor Figma: 1px sobre la etiqueta */
+    font-size: var(--fs-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: var(--tracking-label); font-weight: 500; line-height: 1.6; }
 
 /* Iconos de métricas (XP, vidas, racha): cajas fijas centradas, sin saltos respecto al texto */
 .metric-icon { display: block; flex-shrink: 0; width: var(--space-12); height: var(--space-12); margin-bottom: var(--space-4); }
