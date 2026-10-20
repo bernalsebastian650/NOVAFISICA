@@ -304,6 +304,24 @@ function initLogin() {
     const btnLogin = document.getElementById('btn-login');
     const emailInput = document.getElementById('user-email');
 
+    // display (is-rendered) y opacity (visible) en frames distintos: así el fade-in sí se anima
+    const mostrarContenido = () => {
+        mainContent.classList.add('is-rendered');
+        modal.classList.add('hidden');
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                mainContent.classList.add('visible');
+                iniciarSimulador(); // el contenedor ya tiene layout: el canvas toma su ancho real
+            });
+        });
+    };
+
+    // Recarga accidental: sesión de menos de 1 h → no se vuelve a pedir el correo
+    if (gestor.restaurarSesion()) {
+        mostrarContenido();
+        return;
+    }
+
     const ingresar = () => {
         const email = emailInput.value.trim();
         if (!GestorProgreso.esEmailValido(email)) {
@@ -321,16 +339,7 @@ function initLogin() {
 
         btnLogin.disabled = true; // evita doble envío mientras transiciona
         gestor.iniciarSesion(email);
-
-        // display (is-rendered) y opacity (visible) en frames distintos: así el fade-in sí se anima
-        mainContent.classList.add('is-rendered');
-        modal.classList.add('hidden');
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                mainContent.classList.add('visible');
-                iniciarSimulador(); // el contenedor ya tiene layout: el canvas toma su ancho real
-            });
-        });
+        mostrarContenido();
     };
 
     btnLogin.addEventListener('click', ingresar);

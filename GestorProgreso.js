@@ -13,6 +13,9 @@
 class GestorProgreso {
     static PREFIJO_CLAVE = 'novafisica_';
     static VIDAS_MAX = 3;
+    /** Clave de sesión activa: el doble guion bajo no puede colisionar con `novafisica_{email}` (un email siempre lleva '@'). */
+    static CLAVE_SESION = 'novafisica__sesion';
+    static DURACION_SESION_MS = 60 * 60 * 1000; // 1 hora
     static INSIGNIA_INICIAL = 'explorador';
     static REGLAS_INSIGNIAS = Object.freeze([
         Object.freeze({ id: 'francotirador', xpMinimo: 500 })
@@ -61,7 +64,7 @@ class GestorProgreso {
      * Carga (o crea) el progreso del usuario y actualiza la racha diaria.
      * @returns {boolean} false si el correo no es válido
      */
-    iniciarSesion(email) {
+    iniciarSesion(email, { renovarVentana = true } = {}) {
         const id = typeof email === 'string' ? email.trim() : '';
         if (!GestorProgreso.esEmailValido(id)) return false;
 
@@ -84,8 +87,58 @@ class GestorProgreso {
         }
 
         this.guardar();
+        if (renovarVentana) this._guardarSesionActiva(id);
         this._emitirTodos([{ tipo: 'sesion', nueva }, ...eventos]);
         return true;
+    }
+
+    /**
+     * Reanuda la sesión si el usuario ingresó hace menos de 1 hora (p. ej. recarga accidental).
+     * No extiende la ventana: expira 1 h después del ingreso con correo.
+     * @returns {boolean} true si había una sesión vigente y se restauró
+     */
+    restaurarSesion() {
+        const sesion = this._leerSesionActiva();
+        if (!sesion) return false;
+        if (this.iniciarSesion(sesion.email, { renovarVentana: false })) return true;
+        this.cerrarSesion();
+        return false;
+    }
+
+    /** Olvida la sesión activa (el progreso del usuario se conserva). */
+    cerrarSesion() {
+        try {
+            this._almacenamiento.removeItem(GestorProgreso.CLAVE_SESION);
+        } catch (error) {
+            // sin acceso a storage: nada que limpiar
+        }
+    }
+
+    _guardarSesionActiva(email) {
+        try {
+            const expira = this._reloj().getTime() + GestorProgreso.DURACION_SESION_MS;
+            this._almacenamiento.setItem(GestorProgreso.CLAVE_SESION, JSON.stringify({ email, expira }));
+        } catch (error) {
+            // sin persistencia de sesión: se pedirá el correo al recargar
+        }
+    }
+
+    /** @returns {{email: string, expira: number}|null} null si no existe, está corrupta o expiró */
+    _leerSesionActiva() {
+        let sesion = null;
+        try {
+            const crudo = this._almacenamiento.getItem(GestorProgreso.CLAVE_SESION);
+            sesion = crudo ? JSON.parse(crudo) : null;
+        } catch (error) {
+            sesion = null;
+        }
+        const valida = sesion && typeof sesion.email === 'string' && Number.isFinite(sesion.expira)
+            && sesion.expira > this._reloj().getTime();
+        if (!valida) {
+            if (sesion) this.cerrarSesion(); // limpia sesión expirada o corrupta
+            return null;
+        }
+        return sesion;
     }
 
     /** @returns {boolean} true si se sumó XP */
