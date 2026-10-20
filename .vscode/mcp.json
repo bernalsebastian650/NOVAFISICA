@@ -9,6 +9,13 @@
             "env": {
                 "FIGMA_PERSONAL_ACCESS_TOKEN": "figd_DNZKAVdnSYn5LkDpZYtE4j3LaWaCqh4txMNtkiQh"
             }
+        },
+        "playwright": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@executeautomation/playwright-mcp-server"
+            ]
         }
     }
 }
