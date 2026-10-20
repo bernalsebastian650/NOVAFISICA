@@ -5,10 +5,15 @@
 // ==========================================
 // 1. SISTEMA DE TOASTS (Estilo Sonner)
 // ==========================================
+// Consulta única de reducción de movimiento: toda animación programática debe validarla antes de ejecutarse
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+/** Lee un token CSS (:root) para que curvas y duraciones vivan solo en styles.css */
+const tokenCSS = (nombre) => getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
+
 class ToastSystem {
     constructor() {
         this.container = document.getElementById('toast-container');
-        this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     }
 
     /**
@@ -19,7 +24,10 @@ class ToastSystem {
         const existentes = [...this.container.children];
         const antes = new Map(existentes.map(el => [el, el.getBoundingClientRect().top]));
         mutar();
-        if (this.reducedMotion.matches) return;
+        if (reducedMotion.matches) return;
+
+        const curva = tokenCSS('--smooth');
+        const duracion = parseFloat(tokenCSS('--dur-fast')) * 1000;
 
         existentes.forEach(el => {
             if (!el.isConnected) return;
@@ -27,7 +35,7 @@ class ToastSystem {
             if (!delta) return;
             el.animate(
                 [{ transform: `translateY(${delta}px)` }, { transform: 'translateY(0)' }],
-                { duration: 500, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' }
+                { duration: duracion, easing: curva }
             );
         });
     }
@@ -43,7 +51,7 @@ class ToastSystem {
         if (type === 'success') icon = '🏆';
         if (type === 'error') icon = '💔';
         
-        toast.innerHTML = `<span style="font-size: 1.2rem;">${icon}</span> <span>${message}</span>`;
+        toast.innerHTML = `<span class="toast-icon">${icon}</span> <span>${message}</span>`;
         
         this._flip(() => this.container.appendChild(toast));
 
@@ -232,7 +240,8 @@ function initSmoothScrolling() {
 
             const targetSection = document.querySelector(targetId);
             if (targetSection) {
-                targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // El scroll suave programático ignora el CSS: se valida reduced-motion aquí
+                targetSection.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'start' });
             }
         });
     });
@@ -240,7 +249,9 @@ function initSmoothScrolling() {
 
 function initScrollAnimations() {
     // Con reduced-motion no se oculta nada: el contenido aparece directamente
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (reducedMotion.matches) return;
+
+    const contenedorCanvas = document.getElementById('p5-game-container');
 
     const observer = new IntersectionObserver((entries, obs) => {
         entries.forEach(entry => {
@@ -249,13 +260,19 @@ function initScrollAnimations() {
 
             requestAnimationFrame(() => el.classList.add('in-view'));
 
+            // La variante .reveal--fade solo anima opacity; el resto anima transform
+            const propiedad = el.classList.contains('reveal--fade') ? 'opacity' : 'transform';
+
             // Al terminar el reveal se retiran las clases para que el hover/active propio de cada tarjeta recupere el control
             const limpiar = (e) => {
-                if (e.target !== el || e.propertyName !== 'transform') return;
-                el.classList.remove('reveal', 'in-view');
+                if (e && (e.target !== el || e.propertyName !== propiedad)) return;
+                el.classList.remove('reveal', 'reveal--fade', 'in-view');
                 el.style.removeProperty('--reveal-i');
                 el.removeEventListener('transitionend', limpiar);
+                clearTimeout(respaldo);
             };
+            // Respaldo: si transitionend no se dispara (pestaña en segundo plano) no se deja el reveal pegado
+            const respaldo = setTimeout(() => limpiar(), 2000);
             el.addEventListener('transitionend', limpiar);
             obs.unobserve(el);
         });
@@ -266,8 +283,10 @@ function initScrollAnimations() {
     document.querySelectorAll('.section-title, .video-card, .challenge-card, .diagram-image, .glass:not(.modal-content)').forEach(el => {
         const indice = indicePorPadre.get(el.parentElement) ?? 0;
         indicePorPadre.set(el.parentElement, indice + 1);
-        el.style.setProperty('--reveal-i', Math.min(indice, 5));
+        el.style.setProperty('--reveal-i', Math.min(indice, 5)); // variable CSS (dato), no una propiedad animada
         el.classList.add('reveal');
+        // EXCEPCIÓN p5.js: el árbol que contiene el canvas nunca recibe transform, solo fade
+        if (contenedorCanvas && el.contains(contenedorCanvas)) el.classList.add('reveal--fade');
         observer.observe(el);
     });
 }
