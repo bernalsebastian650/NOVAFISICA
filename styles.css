@@ -417,31 +417,79 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
    VIDEOS & DESAFÍOS (Tarjetas)
 ========================================= */
 .section-title { text-align: center; font-size: var(--fs-2xl); margin-bottom: var(--space-12); letter-spacing: -0.01em; }
-.video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-10); }
 
-.video-card {
-    background: var(--white); border-radius: var(--radius-card); padding: var(--space-6);
-    box-shadow: var(--shadow-soft); transition: transform var(--dur-base) var(--spring);
-    position: relative; will-change: transform; cursor: pointer;
+/* Subtítulo descriptivo de la sección de videos */
+.section-desc {
+    text-align: center;
+    font-family: var(--font-body);
+    font-size: var(--fs-md);
+    color: var(--text-muted);
+    max-width: 680px;
+    margin: calc(-1 * var(--space-8)) auto var(--space-12);
+    line-height: 1.65;
 }
-.video-card::after { box-shadow: var(--shadow-premium); }
-.video-card:hover { transform: translateY(-12px); }
+
+/* --- Grid de videos: 2 columnas fijas en escritorio --- */
+.videos-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.75rem;
+}
+
+/* --- Tarjeta de video: Glassmorphism sobre fondo oscuro de sección --- */
+.video-card {
+    background: color-mix(in srgb, var(--white) 5%, transparent);
+    backdrop-filter: blur(var(--blur-glass));
+    -webkit-backdrop-filter: blur(var(--blur-glass));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-glass), var(--inset-highlight);
+    overflow: hidden;
+    position: relative;
+    will-change: transform;
+    transition: transform var(--dur-base) var(--spring);
+    cursor: default;
+}
+.video-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: var(--shadow-glass-hover);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-base) var(--smooth);
+    will-change: opacity;
+}
+.video-card:hover { transform: translateY(-8px); }
 .video-card:hover::after { opacity: 1; }
 
-.video-thumbnail { position: relative; border-radius: var(--radius-md); overflow: hidden; margin-bottom: var(--space-6); aspect-ratio: 16/9; }
-.video-thumbnail img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(100%); transition: filter var(--dur-slow) var(--smooth), transform var(--dur-slow) var(--smooth); }
-.video-card:hover .video-thumbnail img { filter: grayscale(0%); transform: scale(1.08); }
-
-.play-btn {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
-    width: var(--space-16); height: var(--space-16); background: color-mix(in srgb, var(--white) 90%, transparent); border-radius: var(--radius-btn);
-    border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
-    color: var(--dark-blue); transition: transform var(--dur-base) var(--spring-bouncy), background var(--dur-fast) var(--smooth);
-    box-shadow: var(--shadow-premium); opacity: 0;
-    backdrop-filter: blur(var(--blur-glass)); -webkit-backdrop-filter: blur(var(--blur-glass));
+/* --- Contenedor responsivo 16:9 para el iframe --- */
+.video-wrapper {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    overflow: hidden;
 }
-.play-btn svg { display: block; flex-shrink: 0; }
-.video-card:hover .play-btn { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+.video-wrapper iframe {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border: none;
+}
+
+/* --- Barra inferior con etiqueta del tema --- */
+.video-label {
+    padding: var(--space-4) var(--space-6);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.video-label span {
+    font-family: var(--font-heading);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--white);
+    letter-spacing: var(--tracking-wide);
+}
 
 .challenge-grid { max-width: 800px; margin: var(--space-8) auto 0; }
 .challenge-card {
@@ -591,23 +639,15 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
     transform: scale(0.96);
     transition-duration: var(--dur-press);
 }
-/* El play-btn conserva su centrado translate(-50%, -50%) */
-.video-card .play-btn:active {
-    transform: translate(-50%, -50%) scale(0.96);
-    transition-duration: var(--dur-press);
-}
 
 /* =========================================
    ACCESIBILIDAD: FOCO VISIBLE
 ========================================= */
 .btn:focus-visible, .nav a:focus-visible, .logo:focus-visible,
-.play-btn:focus-visible, .hotspot:focus-visible,
-.video-card:focus-visible, .glass:focus-visible {
+.hotspot:focus-visible, .video-card:focus-visible, .glass:focus-visible {
     outline: 2px solid var(--accent-cyan); outline-offset: 4px;
 }
 .hotspot:focus-visible { border-radius: var(--radius-btn); }
-/* El play-btn nace con opacity 0: con teclado debe volverse visible al recibir foco */
-.play-btn:focus-visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 
 /* =========================================
    ACCESIBILIDAD: prefers-reduced-motion
@@ -626,11 +666,8 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
     }
     .btn:hover, .btn:active, .nav a:hover, .nav a:active, .logo:active, .video-card:hover, .video-card:active,
     .glass:hover, .glass:active, .info-card:hover, .info-card.glass:hover, .battery:hover, .stat-value.is-bumping,
-    .video-card:hover .video-thumbnail img, .diagram-image:hover img, .glass:hover .badge-icon { transform: none !important; }
+    .diagram-image:hover img, .glass:hover .badge-icon { transform: none !important; }
     .hotspot:hover .hotspot-dot, .hotspot:focus-visible .hotspot-dot { transform: translate(-50%, -50%) !important; }
-    /* El play-btn y su centrado no se anulan: solo se elimina la escala */
-    .video-card .play-btn, .video-card:hover .play-btn, .video-card .play-btn:active,
-    .play-btn:focus-visible { transform: translate(-50%, -50%) !important; }
     .reveal { opacity: 1; transform: none; }
     .fade-in-up, .toast { animation-name: fadeOnly; animation-duration: 0.3s; animation-delay: 0s; }
     .toast.exiting { animation-name: fadeOnlyOut; animation-duration: 0.3s; }
@@ -641,6 +678,14 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
 /* =========================================
    RESPONSIVE DESIGN (Móviles y pantallas reducidas)
 ========================================= */
+
+/* Colapso de la cuadrícula de videos a 1 columna en tablets y móviles */
+@media (max-width: 768px) {
+    .videos-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 640px) {
     .hero-info-grid {
         grid-template-columns: 1fr;
