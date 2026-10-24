@@ -1,10 +1,11 @@
 /**
  * NOVAFÍSICA - Controlador de interfaz (Emil Kowalski Edition)
  *
- * Orden de carga (index.html): Cinematica.js → GestorProgreso.js → SimuladorParabolico.js → script.js
+ * Orden de carga (index.html): Cinematica.js → GestorProgreso.js → SimuladorParabolico.js → Carrusel.js → script.js
  *
  *   GestorProgreso      → estado y localStorage (sin DOM)
  *   SimuladorParabolico → canvas p5.js (sin estado de usuario)
+ *   Carrusel            → galería automática de #interactivo (sin estado de usuario)
  *   script.js           → une las piezas: toasts, render del progreso, login y scroll
  */
 
@@ -296,7 +297,13 @@ document.addEventListener('DOMContentLoaded', () => {
     initLogin();
     initSmoothScrolling();
     initScrollAnimations();
+    initCarrusel();
 });
+
+function initCarrusel() {
+    const contenedor = document.querySelector('#interactivo .carousel-container');
+    if (contenedor) new Carrusel(contenedor);
+}
 
 function initLogin() {
     const modal = document.getElementById('login-modal');
@@ -398,7 +405,7 @@ function initScrollAnimations() {
 
     // Stagger: índice del elemento dentro de su contenedor (máx. 5 pasos de 60ms)
     const indicePorPadre = new Map();
-    document.querySelectorAll('.section-title, .video-card, .challenge-card, .diagram-image, .glass:not(.modal-content)').forEach(el => {
+    document.querySelectorAll('.section-title, .video-card, .challenge-card, .glass:not(.modal-content)').forEach(el => {
         const indice = indicePorPadre.get(el.parentElement) ?? 0;
         indicePorPadre.set(el.parentElement, indice + 1);
         el.style.setProperty('--reveal-i', Math.min(indice, 5)); // variable CSS (dato), no una propiedad animada

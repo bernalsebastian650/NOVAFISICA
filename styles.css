@@ -57,6 +57,10 @@
     --border-footer: color-mix(in srgb, var(--white) 10%, transparent);
     --border-footer-divider: color-mix(in srgb, var(--white) 8%, transparent);
     --glass-fill-stat: color-mix(in srgb, var(--white) 6%, transparent);   /* relleno translúcido de tarjetas de métricas */
+    --carousel-control-bg: color-mix(in srgb, var(--dark-blue) 65%, transparent);       /* flechas y pista de puntos del carrusel */
+    --carousel-control-bg-hover: color-mix(in srgb, var(--dark-blue) 85%, transparent);
+    --carousel-dot: color-mix(in srgb, var(--white) 55%, transparent);
+    --blur-control: 8px;   /* desenfoque ligero para controles flotantes sobre imagen */
 
     /* --- Radios --- */
     --radius-card: 24px;   /* Tarjetas, contenedores y paneles */
@@ -90,6 +94,7 @@
     --spring-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1); /* Rebote pronunciado */
     --smooth: cubic-bezier(0.32, 0.72, 0, 1); /* Fluidez total */
     --ease-float: cubic-bezier(0.45, 0, 0.55, 1); /* Loops decorativos (levitación) */
+    --ease-slide: cubic-bezier(0.25, 1, 0.5, 1); /* Desplazamiento de diapositivas (desaceleración larga) */
     --stagger: 60ms; /* Paso de escalonamiento (30-60ms) */
 
     /* --- Duraciones tokenizadas --- */
@@ -537,42 +542,65 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
 /* Excepción deliberada: sin :active scale en el canvas. El usuario arrastra para apuntar y escalar desfasaría mouseX/mouseY. */
 
 /* =========================================
-   IMÁGENES INTERACTIVAS
+   CARRUSEL DEL LABORATORIO VIRTUAL (#interactivo)
+   El índice activo llega desde Carrusel.js en --carousel-index; CSS anima el transform.
 ========================================= */
-.interactive-diagram {
-    max-width: 900px; margin: 0 auto; position: relative; border-radius: var(--radius-card);
-    box-shadow: var(--shadow-premium); background: var(--white); padding: var(--space-6); border: 1px solid var(--border-glass-light);
+.carousel-container.glass {
+    max-width: 950px; margin-inline: auto; padding: 0; cursor: default;
+    background: var(--dark-blue); border: 1px solid var(--border-glass-dark);
+    box-shadow: var(--shadow-premium);
 }
-.diagram-image { position: relative; border-radius: var(--radius-md); overflow: hidden; }
-.diagram-image img { width: 100%; display: block; border-radius: var(--radius-md); transition: transform var(--dur-slow) var(--smooth); }
-.diagram-image:hover img { transform: scale(1.02); }
+/* Contenedor de galería, no tarjeta: sin elevación ni compresión al pasar/pulsar (los controles tienen la suya) */
+.carousel-container.glass:hover, .carousel-container.glass:active { transform: none; }
 
-.hotspot { position: absolute; width: var(--space-12); height: var(--space-12); transform: translate(-50%, -50%); cursor: pointer; }
-.hotspot-dot {
-    width: var(--space-4); height: var(--space-4); background-color: var(--accent-cyan); border-radius: var(--radius-btn);
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2;
-    transition: transform var(--dur-base) var(--spring-bouncy), background-color var(--dur-fast) var(--smooth);
-    box-shadow: var(--shadow-glow-cyan);
+/* El recorte vive aquí (no en .glass) para que la sombra de hover en ::after no quede cortada */
+.carousel-viewport { overflow: hidden; border-radius: inherit; }
+.carousel-track {
+    display: flex;
+    transform: translateX(calc(var(--carousel-index, 0) * -100%));
+    transition: transform var(--dur-base) var(--ease-slide);
+    will-change: transform;
 }
-.hotspot-ripple {
-    width: 100%; height: 100%; background-color: color-mix(in srgb, var(--accent-cyan) 40%, transparent); border-radius: var(--radius-btn);
-    position: absolute; top: 0; left: 0; animation: ripple 2.5s infinite var(--smooth); z-index: 1;
-}
-@keyframes ripple { 0% { transform: scale(0.3); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
-.hotspot:hover .hotspot-dot, .hotspot:focus-visible .hotspot-dot { transform: translate(-50%, -50%) scale(1.5); background-color: var(--accent-cyan-strong); }
+.carousel-slide { flex: 0 0 100%; aspect-ratio: 16 / 9; }
+.carousel-slide img { display: block; width: 100%; height: 100%; object-fit: cover; }
 
-.tooltip {
-    position: absolute; top: -72px; left: 50%; transform: translateX(-50%) scale(0.8) translateY(10px); opacity: 0;
-    background: color-mix(in srgb, var(--dark-blue) 90%, transparent);
-    backdrop-filter: blur(var(--blur-glass)); -webkit-backdrop-filter: blur(var(--blur-glass));
-    color: var(--white); padding: var(--space-3) var(--space-5); border-radius: var(--radius-sm);
-    font-size: var(--fs-sm); font-weight: 500; line-height: 1.4; white-space: nowrap; pointer-events: none; z-index: 10;
-    transition: transform var(--dur-base) var(--spring-bouncy), opacity var(--dur-fast) var(--smooth);
-    box-shadow: var(--shadow-premium); border: 1px solid var(--border-glass-dark);
-    will-change: transform, opacity;
+.carousel-btn {
+    position: absolute; inset-block: 0; margin-block: auto; z-index: 2;
+    width: var(--space-12); height: var(--space-12);
+    display: flex; align-items: center; justify-content: center;
+    border: none; border-radius: var(--radius-btn);
+    background: var(--carousel-control-bg); color: var(--white);
+    backdrop-filter: blur(var(--blur-control)); -webkit-backdrop-filter: blur(var(--blur-control));
+    font-size: var(--fs-lg); line-height: 1; cursor: pointer;
+    transition: transform var(--dur-fast) var(--spring), background-color var(--dur-fast) var(--smooth);
+    will-change: transform;
 }
-.tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border-width: 6px; border-style: solid; border-color: color-mix(in srgb, var(--dark-blue) 90%, transparent) transparent transparent transparent; }
-.hotspot:hover .tooltip, .hotspot:focus-visible .tooltip { transform: translateX(-50%) scale(1) translateY(0); opacity: 1; }
+.btn-prev { left: var(--space-5); }
+.btn-next { right: var(--space-5); }
+/* Brillo tenue: el halo vive en ::after y solo anima opacity */
+.carousel-btn::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit;
+    box-shadow: var(--shadow-glow-cyan); opacity: 0; pointer-events: none;
+    transition: opacity var(--dur-fast) var(--smooth);
+}
+.carousel-btn:hover { transform: scale(1.1); background: var(--carousel-control-bg-hover); }
+.carousel-btn:hover::after { opacity: 1; }
+
+.carousel-dots {
+    position: absolute; bottom: var(--space-4); left: 50%; transform: translateX(-50%); z-index: 2;
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-2) var(--space-3); border-radius: var(--radius-btn);
+    background: var(--carousel-control-bg);
+    backdrop-filter: blur(var(--blur-control)); -webkit-backdrop-filter: blur(var(--blur-control));
+}
+/* Excepción acotada: el punto activo crece en width (pedido de diseño); el reflow se limita a esta pista de 5 puntos */
+.dot {
+    width: 10px; height: 10px; padding: 0; border: none; border-radius: 50%;
+    background: var(--carousel-dot); cursor: pointer;
+    transition: width var(--dur-fast) var(--spring), background-color var(--dur-fast) var(--smooth);
+}
+.dot:hover { background: var(--white); }
+.dot.is-active { width: 24px; border-radius: var(--radius-btn); background: var(--accent-cyan); }
 
 /* =========================================
    GAMIFICACIÓN (Glassmorphism)
@@ -704,7 +732,7 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
    EXCEPCIÓN: #p5-game-container y su canvas NUNCA llevan :active ni transform.
 ========================================= */
 .btn:active, .btn-nebula:active, .btn-plasma:active,
-.video-card:active, .glass:active, .nav a:active, .logo:active {
+.video-card:active, .glass:active, .nav a:active, .logo:active, .carousel-btn:active {
     transform: scale(0.96);
     transition-duration: var(--dur-press);
 }
@@ -713,10 +741,10 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
    ACCESIBILIDAD: FOCO VISIBLE
 ========================================= */
 .btn:focus-visible, .nav a:focus-visible, .logo:focus-visible,
-.hotspot:focus-visible, .video-card:focus-visible, .glass:focus-visible {
+.carousel-btn:focus-visible, .dot:focus-visible, .video-card:focus-visible, .glass:focus-visible {
     outline: 2px solid var(--accent-cyan); outline-offset: 4px;
 }
-.hotspot:focus-visible { border-radius: var(--radius-btn); }
+.dot:focus-visible { outline-offset: 2px; }
 
 /* =========================================
    ACCESIBILIDAD: prefers-reduced-motion
@@ -733,15 +761,17 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
         transition-delay: 0s !important;
         transition-timing-function: var(--smooth) !important;
     }
-    .btn:hover, .btn:active, .nav a:hover, .nav a:active, .logo:active, .video-card:hover, .video-card:active,
+    .btn:hover, .btn:active, .nav a:hover, .nav a:active, .logo:active, .carousel-btn:hover, .carousel-btn:active, .video-card:hover, .video-card:active,
     .glass:hover, .glass:active, .info-card:hover, .info-card.glass:hover, .battery:hover, .stat-value.is-bumping,
-    .diagram-image:hover img, .glass:hover .badge-icon { transform: none !important; }
-    .hotspot:hover .hotspot-dot, .hotspot:focus-visible .hotspot-dot { transform: translate(-50%, -50%) !important; }
+    .glass:hover .badge-icon { transform: none !important; }
+    /* Carrusel: las diapositivas se apilan y se cambia con un fundido en lugar de desplazarse */
+    .carousel-track { display: grid; transform: none; }
+    .carousel-slide { grid-area: 1 / 1; opacity: 0; transition: opacity 0.3s var(--smooth); }
+    .carousel-slide.is-active { opacity: 1; }
     .reveal { opacity: 1; transform: none; }
     .fade-in-up, .toast { animation-name: fadeOnly; animation-duration: 0.3s; animation-delay: 0s; }
     .toast.exiting { animation-name: fadeOnlyOut; animation-duration: 0.3s; }
     .flame-icon, .badge-shiny .shine, .modal-content input.shake { animation: none; }
-    .hotspot-ripple { animation: none; opacity: 0; }
 }
 
 /* =========================================
@@ -771,4 +801,12 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
     .info-card {
         padding: var(--space-5) var(--space-5);
     }
+}
+
+/* Carrusel en móviles: controles más compactos para no tapar la imagen */
+@media (max-width: 640px) {
+    .carousel-btn { width: var(--space-10); height: var(--space-10); font-size: var(--fs-base); }
+    .btn-prev { left: var(--space-3); }
+    .btn-next { right: var(--space-3); }
+    .carousel-dots { bottom: var(--space-3); }
 }

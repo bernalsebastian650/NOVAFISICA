@@ -225,21 +225,42 @@
             <!-- 5. Imágenes Interactivas -->
             <section id="interactivo" class="section">
                 <div class="container">
-                    <h2 class="section-title">Laboratorio Virtual</h2>
-                    <p class="instruction section-instruction">Pasa el cursor sobre los puntos azules para descubrir los conceptos.</p>
-                    <div class="interactive-diagram">
-                        <div class="diagram-image">
-                            <img src="./img/1-movimiento-fisicaa.jpg" alt="Diagrama de Física">
-                            <div class="hotspot" tabindex="0" style="top: 35%; left: 45%;">
-                                <div class="hotspot-ripple"></div>
-                                <div class="hotspot-dot"></div>
-                                <div class="tooltip" role="tooltip">Tensión (T)</div>
+                    <header class="section-header">
+                        <h2 class="section-title">Laboratorio Virtual Interactivo</h2>
+                        <p class="section-subtitle">Visualiza la física en acción. Explora representaciones gráficas de los principios fundamentales del universo a través de nuestro observatorio dinámico y prepárate para experimentar.</p>
+                    </header>
+
+                    <!-- Carrusel automático (lógica en Carrusel.js) -->
+                    <div class="carousel-container glass" role="region" aria-roledescription="carrusel" aria-label="Galería de conceptos de física">
+                        <div class="carousel-viewport">
+                            <div class="carousel-track" aria-live="off">
+                                <div class="carousel-slide" role="group" aria-roledescription="diapositiva" aria-label="1 de 5">
+                                    <img src="./img/1-movimiento-fisicaa.jpg" alt="Cinemática y movimiento en física">
+                                </div>
+                                <div class="carousel-slide" role="group" aria-roledescription="diapositiva" aria-label="2 de 5">
+                                    <img src="./img/2-leyes-de-Newton.jpg" alt="Dinámica y leyes de Newton" loading="lazy">
+                                </div>
+                                <div class="carousel-slide" role="group" aria-roledescription="diapositiva" aria-label="3 de 5">
+                                    <img src="./img/3-ondas-en-fisica.jpg" alt="Fenómenos ondulatorios y frecuencias" loading="lazy">
+                                </div>
+                                <div class="carousel-slide" role="group" aria-roledescription="diapositiva" aria-label="4 de 5">
+                                    <img src="./img/4-vectores-en-fisica.jpg" alt="Vectores, magnitudes y planos de fuerza" loading="lazy">
+                                </div>
+                                <div class="carousel-slide" role="group" aria-roledescription="diapositiva" aria-label="5 de 5">
+                                    <img src="./img/5-presion-e-hidrostatica.jpg" alt="Mecánica de fluidos, presión e hidrostática" loading="lazy">
+                                </div>
                             </div>
-                            <div class="hotspot" tabindex="0" style="top: 65%; left: 65%;">
-                                <div class="hotspot-ripple"></div>
-                                <div class="hotspot-dot"></div>
-                                <div class="tooltip" role="tooltip">Peso (W = mg)</div>
-                            </div>
+                        </div>
+
+                        <button class="carousel-btn btn-prev" aria-label="Imagen anterior">&#10094;</button>
+                        <button class="carousel-btn btn-next" aria-label="Siguiente imagen">&#10095;</button>
+
+                        <div class="carousel-dots" role="group" aria-label="Seleccionar imagen">
+                            <button class="dot" aria-label="Ir a la imagen 1"></button>
+                            <button class="dot" aria-label="Ir a la imagen 2"></button>
+                            <button class="dot" aria-label="Ir a la imagen 3"></button>
+                            <button class="dot" aria-label="Ir a la imagen 4"></button>
+                            <button class="dot" aria-label="Ir a la imagen 5"></button>
                         </div>
                     </div>
                 </div>
@@ -299,6 +320,7 @@
     <script src="Cinematica.js"></script>
     <script src="GestorProgreso.js"></script>
     <script src="SimuladorParabolico.js"></script>
+    <script src="Carrusel.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
