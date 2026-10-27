@@ -954,21 +954,47 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
 .flame-icon { color: var(--accent-violet); filter: drop-shadow(0 0 20px color-mix(in srgb, var(--accent-violet) 40%, transparent)); animation: float 2s var(--ease-float) infinite alternate; will-change: transform; }
 @keyframes float { from { transform: translateY(0); } to { transform: translateY(-12px); } }
 
-.badges-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-10); }
-.badge { text-align: center; position: relative; overflow: hidden; }
-.badge h4 { color: var(--white); letter-spacing: var(--tracking-wide); }
-.badge-icon { display: flex; align-items: center; justify-content: center; width: var(--space-24); height: var(--space-24); margin: 0 auto var(--space-6); font-size: 4.5rem; line-height: 1; filter: var(--drop-icon); transition: transform var(--dur-base) var(--spring-bouncy); will-change: transform; }
-.glass:hover .badge-icon { transform: scale(1.15) translateY(-5px); }
-
-/* Efecto metálico sutil y realista */
-.badge-shiny .shine {
-    position: absolute; top: 0; left: 0; width: 50%; height: 100%;
-    background: linear-gradient(to right, transparent 0%, color-mix(in srgb, var(--white) 30%, transparent) 50%, transparent 100%);
-    transform: translateX(-300%) skewX(-20deg); will-change: transform; animation: shine 5s infinite var(--smooth); pointer-events: none;
+/* Insignias y Medallas: panel de vidrio estático con 4 tarjetas progresivas
+   (desbloqueada: cian con borde iluminado · bloqueada: opaca con borde tenue) */
+.badges-panel {
+    padding: var(--space-8);
+    background: var(--glass-fill-stat);
+    backdrop-filter: blur(var(--blur-glass)); -webkit-backdrop-filter: blur(var(--blur-glass));
+    border: 1px solid var(--border-glass-dark); border-radius: var(--radius-card);
+    box-shadow: var(--shadow-glass), var(--inset-highlight);
 }
-@keyframes shine {
-    0% { transform: translateX(-300%) skewX(-20deg); }
-    20%, 100% { transform: translateX(500%) skewX(-20deg); }
+.badges-panel-title { margin-bottom: var(--space-6); font-size: var(--fs-lg); color: var(--white); }
+
+.badges-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); list-style: none; }
+.badge-card {
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    padding: var(--space-6) var(--space-4);
+    background: var(--lab-surface);
+    border: 1px solid var(--border-footer-divider); border-radius: var(--radius-md);
+    transition: border-color var(--dur-fast) var(--smooth), background-color var(--dur-fast) var(--smooth), opacity var(--dur-fast) var(--smooth);
+}
+.badge-card-icon { display: flex; align-items: center; justify-content: center; width: var(--space-8); height: var(--space-8); margin-bottom: var(--space-3); color: var(--text-muted); }
+.badge-svg { display: block; }
+.badge-svg-fill { fill: currentColor; }
+.badge-card-title { margin-bottom: var(--space-1); font-size: var(--fs-sm); color: var(--white); }
+.badge-card-desc { font-size: var(--fs-xs); line-height: 1.4; color: var(--text-muted); }
+
+.badge-card.is-locked { opacity: 0.5; }
+.badge-card.is-unlocked {
+    background: color-mix(in srgb, var(--accent-cyan) 8%, transparent);
+    border-color: color-mix(in srgb, var(--accent-cyan) 45%, transparent);
+    box-shadow: var(--inset-highlight);
+}
+.badge-card.is-unlocked .badge-card-icon { color: var(--accent-cyan); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent-cyan) 50%, transparent)); }
+
+/* Desbloqueo durante la sesión: pop elástico del icono (solo transform/opacity) */
+@keyframes badgeUnlock { 0% { transform: scale(0.6); opacity: 0.4; } 100% { transform: scale(1); opacity: 1; } }
+.badge-card.is-new .badge-card-icon { animation: badgeUnlock var(--dur-slow) var(--spring-bouncy) backwards; }
+
+/* Texto solo para lectores de pantalla */
+.sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
 /* =========================================
@@ -998,8 +1024,7 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
     background: color-mix(in srgb, var(--accent-cyan-deep) 12%, transparent);
     border-color: color-mix(in srgb, var(--accent-cyan-deep) 30%, transparent);
 }
-/* Anula el .badge-icon de las insignias (96px / 4.5rem) dentro del badge */
-.about-badge .badge-icon { display: inline; width: auto; height: auto; margin: 0; font-size: inherit; filter: none; }
+.about-badge .badge-icon { display: inline; }
 
 .institution-title {
     margin: var(--space-4) 0 var(--space-8);
@@ -1116,7 +1141,8 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
     }
     .btn:hover, .btn:active, .nav a:hover, .nav a:active, .logo:active, .carousel-btn:hover, .carousel-btn:active, .video-card:hover, .video-card:active,
     .glass:hover, .glass:active, .info-card:hover, .info-card.glass:hover, .battery:hover, .stat-value.is-bumping,
-    .glass:hover .badge-icon, .lab-tab:active, .lab-chip:active, .lab-btn:active { transform: none !important; }
+    .lab-tab:active, .lab-chip:active, .lab-btn:active { transform: none !important; }
+    .badge-card.is-new .badge-card-icon { animation-name: fadeOnly; animation-duration: 0.3s; }
     .lab-control input[type="range"]:active::-webkit-slider-thumb { transform: none !important; }
     .lab-control input[type="range"]:active::-moz-range-thumb { transform: none !important; }
     /* Carrusel: las diapositivas se apilan y se cambia con un fundido en lugar de desplazarse */
@@ -1127,7 +1153,7 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
     .fade-in-up, .toast, .quiz-screen, .quiz-option, .quiz-feedback { animation-name: fadeOnly; animation-duration: 0.3s; animation-delay: 0s; }
     .quiz-option:hover, .quiz-option:active, .progress-widget:hover, .progress-widget:active { transform: none !important; }
     .toast.exiting { animation-name: fadeOnlyOut; animation-duration: 0.3s; }
-    .flame-icon, .badge-shiny .shine, .modal-content input.shake { animation: none; }
+    .flame-icon, .modal-content input.shake { animation: none; }
 }
 
 /* =========================================
@@ -1145,6 +1171,7 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
 
 @media (max-width: 1024px) {
     .lab-panel { grid-template-columns: 1fr; }
+    .badges-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* Colapso de la cuadrícula de videos a 1 columna en tablets y móviles */
@@ -1169,6 +1196,7 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
 
 @media (max-width: 640px) {
     .quiz-options { grid-template-columns: 1fr; }
+    .badges-panel { padding: var(--space-6) var(--space-4); }
     .quiz-footer .quiz-next { flex: 1; }
     .hero-info-grid {
         grid-template-columns: 1fr;

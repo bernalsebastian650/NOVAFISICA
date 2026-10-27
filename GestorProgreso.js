@@ -8,6 +8,12 @@
  * Esquema persistido: { email, puntosXP, rachaDias, ultimaVisita, vidas, insignias, quizHistorial }
  *   (los registros antiguos con `xp` / `racha` se migran al leerlos).
  *
+ * Insignias progresivas (ids en INSIGNIAS, en orden de aparición):
+ *   pionero  → por defecto, desde el primer ingreso
+ *   tirador  → primer uso de un simulador p5.js (registrarUsoSimulador)
+ *   genio    → primer acierto en el Quiz XP (registrarAciertoQuiz)
+ *   maestro  → alcanzar el nivel NIVEL_MAESTRO (se evalúa al sumar XP y al cargar registros antiguos)
+ *
  * Racha diaria (al ingresar Y al ganar XP, por si la pestaña sigue abierta tras la medianoche):
  *   mismo día → intacta · día siguiente → +1 · más de un día sin ingresar → 1.
  *
@@ -22,10 +28,11 @@ class GestorProgreso {
     /** Clave de sesión activa: el doble guion bajo no puede colisionar con `novafisica_{email}` (un email siempre lleva '@'). */
     static CLAVE_SESION = 'novafisica__sesion';
     static DURACION_SESION_MS = 60 * 60 * 1000; // 1 hora
-    static INSIGNIA_INICIAL = 'explorador';
-    static REGLAS_INSIGNIAS = Object.freeze([
-        Object.freeze({ id: 'francotirador', xpMinimo: 500 })
-    ]);
+    static INSIGNIAS = Object.freeze(['pionero', 'tirador', 'genio', 'maestro']);
+    static INSIGNIA_INICIAL = 'pionero';
+    static NIVEL_MAESTRO = 2;
+    /** Ids del esquema anterior → equivalentes actuales (se migran al leer el registro). */
+    static INSIGNIAS_ANTIGUAS = Object.freeze({ explorador: 'pionero', francotirador: 'tirador' });
     static REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     static REGEX_FECHA = /^\d{4}-\d{2}-\d{2}$/;
     static XP_POR_NIVEL = 250;
@@ -189,16 +196,39 @@ class GestorProgreso {
         const nivelAhora = GestorProgreso.nivel(this._estado.puntosXP).nivel;
         if (nivelAhora > nivelAntes) eventos.push({ tipo: 'nivel', nivel: nivelAhora });
 
-        GestorProgreso.REGLAS_INSIGNIAS.forEach(({ id, xpMinimo }) => {
-            if (this._estado.puntosXP >= xpMinimo && !this._estado.insignias.includes(id)) {
-                this._estado.insignias.push(id);
-                eventos.push({ tipo: 'insignia', id });
-            }
-        });
+        if (nivelAhora >= GestorProgreso.NIVEL_MAESTRO) this._desbloquear('maestro', eventos);
 
         this.guardar();
         this._emitirTodos(eventos);
         return true;
+    }
+
+    /** Cualquier interacción con un simulador p5.js (laboratorio o reto). Idempotente: solo guarda la primera vez. */
+    registrarUsoSimulador() {
+        return this._logro('tirador');
+    }
+
+    /** Respuesta correcta en el Quiz XP. Idempotente. */
+    registrarAciertoQuiz() {
+        return this._logro('genio');
+    }
+
+    /** @returns {boolean} true si la insignia se acaba de desbloquear */
+    _logro(id) {
+        if (!this._estado || this._estado.insignias.includes(id)) return false;
+        const eventos = [];
+        this._desbloquear(id, eventos);
+        this.guardar();
+        this._emitirTodos(eventos);
+        return true;
+    }
+
+    /** Añade la insignia (si falta) respetando el orden del catálogo y encola su evento. */
+    _desbloquear(id, eventos) {
+        const e = this._estado;
+        if (e.insignias.includes(id)) return;
+        e.insignias = GestorProgreso.INSIGNIAS.filter((i) => i === id || e.insignias.includes(i));
+        eventos.push({ tipo: 'insignia', id });
     }
 
     /** Ids de preguntas del Quiz XP ya mostradas en el ciclo actual del banco. */
@@ -272,10 +302,16 @@ class GestorProgreso {
         const entero = (valor, porDefecto, minimo = 0) =>
             Number.isFinite(valor) ? Math.max(minimo, Math.trunc(valor)) : porDefecto;
 
-        const insignias = Array.isArray(crudo.insignias)
-            ? [...new Set(crudo.insignias.filter((i) => typeof i === 'string'))]
-            : [];
-        if (!insignias.includes(GestorProgreso.INSIGNIA_INICIAL)) insignias.unshift(GestorProgreso.INSIGNIA_INICIAL);
+        const puntosXP = entero(crudo.puntosXP ?? crudo.xp, 0);          // migración: `xp` (esquema anterior)
+
+        // Insignias: se traducen ids antiguos, se descartan desconocidos y se garantizan la inicial
+        // y la de nivel (sin evento: no se anuncia un logro que el usuario ya tenía).
+        const conseguidas = new Set(Array.isArray(crudo.insignias)
+            ? crudo.insignias.filter((i) => typeof i === 'string').map((i) => GestorProgreso.INSIGNIAS_ANTIGUAS[i] ?? i)
+            : []);
+        conseguidas.add(GestorProgreso.INSIGNIA_INICIAL);
+        if (GestorProgreso.nivel(puntosXP).nivel >= GestorProgreso.NIVEL_MAESTRO) conseguidas.add('maestro');
+        const insignias = GestorProgreso.INSIGNIAS.filter((i) => conseguidas.has(i));
 
         const fechaValida = typeof crudo.ultimaVisita === 'string' && GestorProgreso.REGEX_FECHA.test(crudo.ultimaVisita);
         const quizHistorial = Array.isArray(crudo.quizHistorial)
@@ -284,7 +320,7 @@ class GestorProgreso {
 
         return {
             email,
-            puntosXP: entero(crudo.puntosXP ?? crudo.xp, 0),          // migración: `xp` (esquema anterior)
+            puntosXP,
             rachaDias: entero(crudo.rachaDias ?? crudo.racha, 1, 1),  // migración: `racha`
             ultimaVisita: fechaValida ? crudo.ultimaVisita : null,
             vidas: Math.min(GestorProgreso.VIDAS_MAX, entero(crudo.vidas, GestorProgreso.VIDAS_MAX)),

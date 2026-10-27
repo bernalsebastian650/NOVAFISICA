@@ -14,6 +14,7 @@
  *
  * Recompensas: las subclases llaman a `lograr(xp, motivo)`; la base lo entrega fuera del frame
  * de dibujo al callback `alLograr` (script.js → GestorProgreso). El simulador nunca toca el progreso.
+ * La primera interacción con los controles (slider o botón) se notifica una vez a `alInteractuar`.
  *
  * Las subclases implementan: actualizar(dt), dibujar(p), y opcionalmente
  * alCambiarParametro(nombre, valor), alAccion(accion, boton), alRedimensionar(), altoPara(ancho).
@@ -36,15 +37,18 @@ class SimuladorBase {
     }
 
     /**
-     * @param {{panel: HTMLElement, colores: Record<string,string>, alLograr?: (xp: number, motivo: string) => void}} opciones
+     * @param {{panel: HTMLElement, colores: Record<string,string>,
+     *          alLograr?: (xp: number, motivo: string) => void, alInteractuar?: () => void}} opciones
      *   colores: valores hex leídos de :root (p5.color no entiende color-mix()).
      */
-    constructor({ panel, colores, alLograr = null }) {
+    constructor({ panel, colores, alLograr = null, alInteractuar = null }) {
         this.panel = panel;
         this.lienzo = panel.querySelector('[data-lienzo]');
         this.controles = panel.querySelector('[data-controles]');
         this.colores = colores;
         this._alLograr = alLograr;
+        this._alInteractuar = alInteractuar;
+        this._interactuo = false;
         this._destruido = false;
 
         this.params = {};
@@ -72,10 +76,13 @@ class SimuladorBase {
             if (!input) return;
             this._leerControl(input);
             this.alCambiarParametro(input.dataset.param, this.params[input.dataset.param]);
+            this._notificarInteraccion();
         }, { signal });
         this.controles.addEventListener('click', (e) => {
             const boton = e.target.closest('[data-accion]');
-            if (boton) this.alAccion(boton.dataset.accion, boton);
+            if (!boton) return;
+            this.alAccion(boton.dataset.accion, boton);
+            this._notificarInteraccion();
         }, { signal });
 
         this._p5 = new p5((p) => this._definirSketch(p), this.lienzo);
@@ -103,6 +110,12 @@ class SimuladorBase {
     alAccion(accion, boton) {}
     alRedimensionar() {}
     altoPara(ancho) { return Math.round(Math.min(420, Math.max(300, ancho * 0.55))); }
+
+    _notificarInteraccion() {
+        if (this._interactuo) return;
+        this._interactuo = true;
+        if (this._alInteractuar) this._alInteractuar();
+    }
 
     /** Notifica una recompensa fuera del bucle de dibujo (la UI y localStorage no se tocan dentro de draw). */
     lograr(xp, motivo) {
