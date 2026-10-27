@@ -21,10 +21,15 @@
     --danger: #F87171;             /* Respuesta incorrecta (5.9:1 sobre --dark-blue) */
     --accent-cyan-deep: #06B6D4;   /* Icono 1.er integrante («¿Quiénes Somos?») */
     --accent-teal: #34D399;        /* Icono 3.er integrante («¿Quiénes Somos?») */
+    --accent-gold: #FBBF24;        /* Icono «Desafíos» (navbar) */
+    --accent-pink: #F472B6;        /* Icono «Videos» (navbar) */
+    --accent-indigo: #818CF8;      /* Icono «Mi Nivel» (navbar) */
 
     /* --- Gradientes: solo para acción principal (Nebulosa) y recompensas (Plasma) --- */
     --nebula-grad: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
     --plasma-grad: linear-gradient(135deg, var(--accent-plasma), var(--accent-violet));
+    /* Logotipo: cian brillante que vira a lila solo en el tramo final (paleta elegida por los estudiantes) */
+    --logo-grad: linear-gradient(90deg, var(--accent-cyan) 0%, var(--accent-cyan) 45%, var(--accent-violet) 100%);
 
     /* --- Texto sobre gradientes (contraste WCAG AA) ---
        Blanco sobre Nebulosa solo daba 2.1:1 - 3.9:1; --dark-blue da 4.5:1 - 8.3:1.
@@ -290,9 +295,22 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
     padding: var(--space-5) 0;
 }
 .header-content { display: flex; justify-content: space-between; align-items: center; }
-.logo { display: inline-block; transition: transform var(--dur-fast) var(--spring); color: var(--white); font-family: var(--font-heading); font-size: var(--fs-xl); font-weight: 700; line-height: 1.2; text-decoration: none; letter-spacing: var(--tracking-tight); }
-.nav { display: flex; gap: var(--space-8); }
-.nav a { color: color-mix(in srgb, var(--white) 80%, transparent); text-decoration: none; font-size: var(--fs-sm); transition: color var(--dur-fast) var(--smooth), transform var(--dur-fast) var(--spring); display: inline-block; }
+.logo {
+    display: inline-block; transition: transform var(--dur-fast) var(--spring);
+    color: var(--accent-cyan);   /* respaldo si background-clip: text no está disponible */
+    background: var(--logo-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    font-family: var(--font-heading); font-size: var(--fs-xl); font-weight: 700; line-height: 1.2; text-decoration: none; letter-spacing: var(--tracking-tight);
+}
+.nav { display: flex; gap: var(--space-6); }
+.nav a { color: color-mix(in srgb, var(--white) 80%, transparent); text-decoration: none; font-size: var(--fs-sm); transition: color var(--dur-fast) var(--smooth), transform var(--dur-fast) var(--spring); display: inline-flex; align-items: center; gap: var(--space-2); }
+/* Iconos del menú: caja fija, color propio por sección (el texto conserva su hover cian) */
+.nav-icon { display: block; flex-shrink: 0; width: 18px; height: 18px; }
+.nav-icon--home { color: var(--accent-cyan); }
+.nav-icon--video { color: var(--accent-pink); }
+.nav-icon--trophy { color: var(--accent-gold); }
+.nav-icon--lab { color: var(--accent-violet); }
+.nav-icon--quiz { color: var(--accent-teal); }
+.nav-icon--level { color: var(--accent-indigo); }
 .nav a:hover { color: var(--accent-cyan); transform: translateY(-2px); }
 
 /* =========================================
@@ -1117,6 +1135,14 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
 ========================================= */
 
 /* Laboratorio: controles bajo el canvas en tablets y móviles */
+/* Header: logo + widget en la primera fila y la navegación con iconos en una segunda fila desplazable
+   (en una sola fila no caben logo, seis enlaces con icono y el widget por debajo de ~1200px) */
+@media (max-width: 1200px) {
+    .header-content { flex-wrap: wrap; row-gap: var(--space-3); }
+    .nav { order: 3; width: 100%; gap: var(--space-5); overflow-x: auto; scrollbar-width: none; }
+    .nav a { flex-shrink: 0; white-space: nowrap; }
+}
+
 @media (max-width: 1024px) {
     .lab-panel { grid-template-columns: 1fr; }
 }
@@ -1133,10 +1159,6 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
     .about-quote-card.glass { padding: var(--space-8) var(--space-5); }
     .team-cards-grid { grid-template-columns: 1fr; }
     .lab { padding: var(--space-4); }
-    /* Header: el widget compacto queda junto al logo y la navegación pasa a una fila desplazable */
-    .header-content { flex-wrap: wrap; gap: var(--space-3); }
-    .nav { order: 3; width: 100%; gap: var(--space-5); overflow-x: auto; scrollbar-width: none; }
-    .nav a { flex-shrink: 0; white-space: nowrap; }
     .pw-name, .pw-bar { display: none; }
     .quiz-card { padding: var(--space-6) var(--space-4); }
     /* Pestañas en 3 columnas iguales: no se apilan en una pila alta */
