@@ -12,6 +12,9 @@
  *     Todos los listeners cuelgan de un AbortController: destruir() los retira de una vez.
  *   - Lienzo responsivo (ResizeObserver) y pausa del dibujo fuera de pantalla (IntersectionObserver).
  *
+ * Recompensas: las subclases llaman a `lograr(xp, motivo)`; la base lo entrega fuera del frame
+ * de dibujo al callback `alLograr` (script.js → GestorProgreso). El simulador nunca toca el progreso.
+ *
  * Las subclases implementan: actualizar(dt), dibujar(p), y opcionalmente
  * alCambiarParametro(nombre, valor), alAccion(accion, boton), alRedimensionar(), altoPara(ancho).
  */
@@ -33,14 +36,16 @@ class SimuladorBase {
     }
 
     /**
-     * @param {{panel: HTMLElement, colores: Record<string,string>}} opciones
+     * @param {{panel: HTMLElement, colores: Record<string,string>, alLograr?: (xp: number, motivo: string) => void}} opciones
      *   colores: valores hex leídos de :root (p5.color no entiende color-mix()).
      */
-    constructor({ panel, colores }) {
+    constructor({ panel, colores, alLograr = null }) {
         this.panel = panel;
         this.lienzo = panel.querySelector('[data-lienzo]');
         this.controles = panel.querySelector('[data-controles]');
         this.colores = colores;
+        this._alLograr = alLograr;
+        this._destruido = false;
 
         this.params = {};
         this.p = null;
@@ -78,6 +83,7 @@ class SimuladorBase {
 
     /** Detiene el bucle, libera listeners/observadores y elimina el canvas del DOM. */
     destruir() {
+        this._destruido = true;
         this._abortar.abort();
         if (this._observadorTamano) this._observadorTamano.disconnect();
         if (this._observadorVisibilidad) this._observadorVisibilidad.disconnect();
@@ -97,6 +103,13 @@ class SimuladorBase {
     alAccion(accion, boton) {}
     alRedimensionar() {}
     altoPara(ancho) { return Math.round(Math.min(420, Math.max(300, ancho * 0.55))); }
+
+    /** Notifica una recompensa fuera del bucle de dibujo (la UI y localStorage no se tocan dentro de draw). */
+    lograr(xp, motivo) {
+        queueMicrotask(() => {
+            if (!this._destruido && this._alLograr) this._alLograr(xp, motivo);
+        });
+    }
 
     // ------------------------------------------------------------------
     // Utilidades de controles

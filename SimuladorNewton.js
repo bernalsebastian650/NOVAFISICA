@@ -11,6 +11,9 @@
  * Integración semi-implícita de Euler con paso fijo (SimuladorBase). Si la fricción frenaría
  * el bloque más allá del reposo dentro de un paso, se detiene exactamente en v = 0.
  * La gráfica v–t (pendiente = a) usa búferes preasignados: memoria constante.
+ *
+ * Recompensa: +15 XP al acumular 10 s de simulación en marcha habiendo modificado la masa o la
+ * fuerza desde la última recompensa (no basta con dejarlo correr ni con mover sliders en pausa).
  */
 class SimuladorNewton extends SimuladorBase {
     static G = 9.8;
@@ -20,12 +23,16 @@ class SimuladorNewton extends SimuladorBase {
     static PX_POR_N = 2.2;
     static FLECHA_MAX = 150;
     static MARGEN = 16;
+    static XP_EXPERIMENTO = 15;
+    static TIEMPO_EXPERIMENTO_S = 10;
 
     constructor(opciones) {
         super(opciones);
         const n = SimuladorNewton.DURACION_S * SimuladorNewton.MUESTRAS_POR_S + 1;
         this._muestrasT = new Float32Array(n);
         this._muestrasV = new Float32Array(n);
+        this._tiempoExperimento = 0;   // s con la simulación corriendo desde la última recompensa
+        this._ajusto = false;          // ¿cambió masa o fuerza desde la última recompensa?
         this._reiniciarEstado();
     }
 
@@ -63,6 +70,7 @@ class SimuladorNewton extends SimuladorBase {
         this.x += this.v * dt;
         this.t += dt;
         this._registrarMuestra();
+        this._evaluarExperimento(dt);
 
         if (this.t >= SimuladorNewton.DURACION_S) {
             this.t = SimuladorNewton.DURACION_S;
@@ -79,6 +87,19 @@ class SimuladorNewton extends SimuladorBase {
         this._muestrasV[indice] = this.v;
         this._nMuestras = indice + 1;
         if (this.v > this._vMaxGrafica) this._vMaxGrafica = SimuladorNewton._techoRedondo(this.v);
+    }
+
+    _evaluarExperimento(dt) {
+        const { TIEMPO_EXPERIMENTO_S, XP_EXPERIMENTO } = SimuladorNewton;
+        this._tiempoExperimento += dt;
+        if (!this._ajusto || this._tiempoExperimento < TIEMPO_EXPERIMENTO_S - 1e-6) return;
+        this._tiempoExperimento = 0;
+        this._ajusto = false;
+        this.lograr(XP_EXPERIMENTO, 'Experimento de la 2.ª Ley de Newton');
+    }
+
+    alCambiarParametro(nombre) {
+        if (nombre === 'masa' || nombre === 'fuerza') this._ajusto = true;
     }
 
     /** 1, 2, 5, 10, 20, 50… inmediatamente por encima de v (ejes con números legibles). */

@@ -5,9 +5,15 @@
  * No toca el DOM ni los toasts: notifica cambios mediante eventos (suscribir) y la
  * interfaz decide cómo mostrarlos. Clave de almacenamiento: `novafisica_{email}`.
  *
+ * Esquema persistido: { email, puntosXP, rachaDias, ultimaVisita, vidas, insignias, quizHistorial }
+ *   (los registros antiguos con `xp` / `racha` se migran al leerlos).
+ *
+ * Racha diaria (al ingresar Y al ganar XP, por si la pestaña sigue abierta tras la medianoche):
+ *   mismo día → intacta · día siguiente → +1 · más de un día sin ingresar → 1.
+ *
  * Eventos emitidos (oyente recibe `(evento, estadoActual)`):
- *   sesion {nueva} · xp {cantidad} · insignia {id} · vida-perdida {restantes} · vidas-agotadas
- *   racha-incrementada {racha} · racha-reiniciada · vidas-recargadas
+ *   sesion {nueva} · xp {cantidad, motivo} · nivel {nivel} · insignia {id} · vida-perdida {restantes}
+ *   vidas-agotadas · racha-incrementada {rachaDias} · racha-reiniciada · vidas-recargadas
  *   datos-corruptos · guardado-fallido · sincronizado
  */
 class GestorProgreso {
@@ -22,6 +28,7 @@ class GestorProgreso {
     ]);
     static REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     static REGEX_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+    static XP_POR_NIVEL = 250;
 
     /**
      * @param {{almacenamiento?: Storage, reloj?: () => Date}} [opciones] inyectables para pruebas
@@ -43,7 +50,28 @@ class GestorProgreso {
     /** Copia inmutable del estado: la UI nunca puede mutarlo directamente. */
     get estado() {
         if (!this._estado) return null;
-        return Object.freeze({ ...this._estado, insignias: Object.freeze([...this._estado.insignias]) });
+        return Object.freeze({
+            ...this._estado,
+            insignias: Object.freeze([...this._estado.insignias]),
+            quizHistorial: Object.freeze([...this._estado.quizHistorial])
+        });
+    }
+
+    /**
+     * Nivel lineal: cada XP_POR_NIVEL puntos se sube uno (nivel 1 con 0 XP).
+     * @returns {{nivel: number, xpEnNivel: number, xpPorNivel: number, faltante: number, progreso: number}}
+     */
+    static nivel(puntosXP) {
+        const porNivel = GestorProgreso.XP_POR_NIVEL;
+        const xp = Math.max(0, Math.trunc(puntosXP) || 0);
+        const xpEnNivel = xp % porNivel;
+        return {
+            nivel: Math.floor(xp / porNivel) + 1,
+            xpEnNivel,
+            xpPorNivel: porNivel,
+            faltante: porNivel - xpEnNivel,
+            progreso: xpEnNivel / porNivel
+        };
     }
 
     get tieneVidas() {
@@ -141,15 +169,28 @@ class GestorProgreso {
         return sesion;
     }
 
-    /** @returns {boolean} true si se sumó XP */
-    sumarXP(cantidad) {
+    /**
+     * Única vía para ganar experiencia (desafíos, laboratorio y Quiz XP).
+     * @param {number} cantidad  puntos enteros > 0
+     * @param {string} [motivo]  texto corto para el aviso ("Quiz XP", "Diana en tiro parabólico"…)
+     * @returns {boolean} true si se sumó XP
+     */
+    sumarXP(cantidad, motivo = '') {
         const puntos = Math.trunc(cantidad);
         if (!this._estado || !Number.isFinite(puntos) || puntos <= 0) return false;
 
-        this._estado.xp += puntos;
-        const eventos = [{ tipo: 'xp', cantidad: puntos }];
+        const eventos = [];
+        this._actualizarRachaDiaria(this._hoyISO(), eventos);   // jugar en un día nuevo también cuenta
+
+        const nivelAntes = GestorProgreso.nivel(this._estado.puntosXP).nivel;
+        this._estado.puntosXP += puntos;
+        eventos.push({ tipo: 'xp', cantidad: puntos, motivo: String(motivo) });
+
+        const nivelAhora = GestorProgreso.nivel(this._estado.puntosXP).nivel;
+        if (nivelAhora > nivelAntes) eventos.push({ tipo: 'nivel', nivel: nivelAhora });
+
         GestorProgreso.REGLAS_INSIGNIAS.forEach(({ id, xpMinimo }) => {
-            if (this._estado.xp >= xpMinimo && !this._estado.insignias.includes(id)) {
+            if (this._estado.puntosXP >= xpMinimo && !this._estado.insignias.includes(id)) {
                 this._estado.insignias.push(id);
                 eventos.push({ tipo: 'insignia', id });
             }
@@ -158,6 +199,18 @@ class GestorProgreso {
         this.guardar();
         this._emitirTodos(eventos);
         return true;
+    }
+
+    /** Ids de preguntas del Quiz XP ya mostradas en el ciclo actual del banco. */
+    get historialQuiz() {
+        return this._estado ? [...this._estado.quizHistorial] : [];
+    }
+
+    /** Reemplaza el historial de rotación del quiz (lo calcula QuizXP; aquí solo se valida y persiste). */
+    guardarHistorialQuiz(ids) {
+        if (!this._estado || !Array.isArray(ids)) return false;
+        this._estado.quizHistorial = [...new Set(ids.filter((id) => typeof id === 'string'))];
+        return this.guardar();
     }
 
     /** @returns {boolean} true si se descontó una vida (false si ya no quedaban) */
@@ -200,11 +253,12 @@ class GestorProgreso {
     static crearEstadoInicial(email, hoy) {
         return {
             email,
-            xp: 0,
+            puntosXP: 0,
+            rachaDias: 1,
+            ultimaVisita: hoy,
             vidas: GestorProgreso.VIDAS_MAX,
-            racha: 1,
             insignias: [GestorProgreso.INSIGNIA_INICIAL],
-            ultimaVisita: hoy
+            quizHistorial: []
         };
     }
 
@@ -224,14 +278,18 @@ class GestorProgreso {
         if (!insignias.includes(GestorProgreso.INSIGNIA_INICIAL)) insignias.unshift(GestorProgreso.INSIGNIA_INICIAL);
 
         const fechaValida = typeof crudo.ultimaVisita === 'string' && GestorProgreso.REGEX_FECHA.test(crudo.ultimaVisita);
+        const quizHistorial = Array.isArray(crudo.quizHistorial)
+            ? [...new Set(crudo.quizHistorial.filter((id) => typeof id === 'string'))]
+            : [];
 
         return {
             email,
-            xp: entero(crudo.xp, 0),
+            puntosXP: entero(crudo.puntosXP ?? crudo.xp, 0),          // migración: `xp` (esquema anterior)
+            rachaDias: entero(crudo.rachaDias ?? crudo.racha, 1, 1),  // migración: `racha`
+            ultimaVisita: fechaValida ? crudo.ultimaVisita : null,
             vidas: Math.min(GestorProgreso.VIDAS_MAX, entero(crudo.vidas, GestorProgreso.VIDAS_MAX)),
-            racha: entero(crudo.racha, 1, 1),
             insignias,
-            ultimaVisita: fechaValida ? crudo.ultimaVisita : null
+            quizHistorial
         };
     }
 
@@ -324,11 +382,11 @@ class GestorProgreso {
         if (dias !== null && dias <= 0) return; // mismo día (o reloj retrocedido)
 
         if (dias === 1) {
-            e.racha += 1;
-            eventos.push({ tipo: 'racha-incrementada', racha: e.racha });
+            e.rachaDias += 1;
+            eventos.push({ tipo: 'racha-incrementada', rachaDias: e.rachaDias });
         } else {
-            if (e.racha > 1) eventos.push({ tipo: 'racha-reiniciada' });
-            e.racha = 1;
+            if (e.rachaDias > 1) eventos.push({ tipo: 'racha-reiniciada' });
+            e.rachaDias = 1;
         }
         e.ultimaVisita = hoy;
 

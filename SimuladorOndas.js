@@ -9,6 +9,9 @@
  * y, como en una cuerda real, un cambio de frecuencia o amplitud viaja hacia la derecha a velocidad v.
  *
  * Relaciones mostradas: T = 1/f, λ = v/f.
+ *
+ * Recompensa: +15 XP tras modificar la frecuencia Y la amplitud y observar la onda en marcha
+ * al menos 10 s desde la última recompensa (evita sumar XP agitando los sliders).
  */
 class SimuladorOndas extends SimuladorBase {
     static VELOCIDAD = 1;            // m/s (constante del medio)
@@ -18,6 +21,8 @@ class SimuladorOndas extends SimuladorBase {
     static PASO_VERTICE_PX = 2;
     static X_PARTICULA = 2.5;        // m: partícula marcada (oscila en vertical, no avanza)
     static MARGEN = Object.freeze({ izq: 40, der: 16 });
+    static XP_EXPLORACION = 15;
+    static TIEMPO_EXPLORACION_S = 10;
 
     constructor(opciones) {
         super(opciones);
@@ -27,6 +32,8 @@ class SimuladorOndas extends SimuladorBase {
         this._fase = 0;
         this._amplitud = 0;          // amplitud efectiva de la fuente (m), suavizada
         this._acumMuestra = 0;
+        this._cambios = new Set();       // 'frecuencia' / 'amplitud' modificados desde la última recompensa
+        this._tiempoExploracion = 0;
         // Con reduced-motion la onda no arranca sola: el usuario decide cuándo reproducirla
         this.corriendo = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     }
@@ -43,6 +50,20 @@ class SimuladorOndas extends SimuladorBase {
         super.iniciar();
         this._amplitud = this.amplitudObjetivo;
         this._sincronizarBotones();
+    }
+
+    alCambiarParametro(nombre) {
+        this._cambios.add(nombre);
+    }
+
+    _evaluarExploracion(dt) {
+        const { TIEMPO_EXPLORACION_S, XP_EXPLORACION } = SimuladorOndas;
+        this._tiempoExploracion += dt;
+        const ambos = this._cambios.has('frecuencia') && this._cambios.has('amplitud');
+        if (!ambos || this._tiempoExploracion < TIEMPO_EXPLORACION_S) return;
+        this._tiempoExploracion = 0;
+        this._cambios.clear();
+        this.lograr(XP_EXPLORACION, 'Exploración del generador de ondas');
     }
 
     alAccion(accion) {
@@ -73,6 +94,7 @@ class SimuladorOndas extends SimuladorBase {
         const { SUAVIZADO, MUESTRAS_POR_S } = SimuladorOndas;
         this._amplitud += (this.amplitudObjetivo - this._amplitud) * (1 - Math.exp(-SUAVIZADO * dt));
         this._fase = (this._fase + 2 * Math.PI * this.frecuencia * dt) % (2 * Math.PI);
+        this._evaluarExploracion(dt);
 
         // Una muestra cada 1/MUESTRAS_POR_S s (coincide con el paso fijo, pero no depende de ello)
         this._acumMuestra += dt * MUESTRAS_POR_S;

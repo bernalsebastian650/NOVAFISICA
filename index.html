@@ -35,11 +35,17 @@
                     <a href="#videos">Videos</a>
                     <a href="#desafios">Desafíos</a>
                     <a href="#interactivo">Interactivo</a>
+                    <a href="#quiz-xp">Quiz XP</a>
                     <a href="#mi-nivel">Mi Nivel</a>
                 </nav>
-                <div id="user-profile-display" class="user-profile">
-                    <!-- Aquí se inyectará: Explorador: [email] -->
-                </div>
+                <!-- Widget de resumen (InterfazProgreso lo actualiza con cada evento de GestorProgreso) -->
+                <a href="#mi-nivel" class="progress-widget" id="pw-enlace" aria-label="Resumen de tu progreso: ver Mi Nivel">
+                    <span class="pw-name" id="pw-nombre">Explorador</span>
+                    <span class="pw-level" id="pw-nivel">Nv 1</span>
+                    <span class="pw-bar" id="pw-barra" role="progressbar" aria-label="Progreso al siguiente nivel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="pw-bar-fill"></span></span>
+                    <span class="pw-xp" id="pw-xp">0 XP</span>
+                    <span class="pw-streak"><svg class="pw-streak-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M11.71 1.74a1.01 1.01 0 0 0-1.46.22C8.75 3.94 6.75 6.78 6 9c-1.37 4.14-1 8.87 3 11 0 0 1.5-.75 2-1 3.5 1.5 7-1 7-5.5 0-3-1.63-5.75-2.25-6.75-.4-.64-1.31-.69-1.78-.1a17.29 17.29 0 0 0-2.26 3.85c-.09.19-.38.16-.43-.04-.63-2.61.12-6.62 1.43-8.72.06-.09.07-.22 0-.31z"/></svg><span id="pw-racha">1</span></span>
+                </a>
             </div>
         </header>
 
@@ -348,7 +354,21 @@
                 </div>
             </section>
 
-            <!-- 6. Mi Nivel (Gamificación - Dinámico con LocalStorage) -->
+            <!-- 6. Quiz XP (QuizXP.js + bancoPreguntas.js) -->
+            <section id="quiz-xp" class="section section-dark quiz-section" aria-labelledby="quiz-xp-title">
+                <div class="container">
+                    <header class="section-header">
+                        <span class="section-badge quiz-badge">Pon a prueba lo aprendido</span>
+                        <h2 class="section-title section-title--light" id="quiz-xp-title">Quiz XP</h2>
+                        <p class="section-subtitle quiz-subtitle">Cinco preguntas, una de cada temática de la plataforma. Cada acierto suma experiencia a tu perfil.</p>
+                    </header>
+                    <div class="quiz-card" id="quiz-xp-app" aria-live="polite">
+                        <!-- Pantallas renderizadas por QuizXP.js -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- 7. Mi Nivel (Gamificación - Dinámico con LocalStorage) -->
             <section id="mi-nivel" class="section section-dark">
                 <div class="container gamification-dashboard">
                     <h2 class="section-title section-title--light">Mi Perfil Cuántico</h2>
@@ -365,6 +385,11 @@
                             </div>
                             <span class="stat-label">Energía Vital</span>
                         </div>
+                        <div class="stat-card glass level">
+                            <svg class="metric-icon level-icon" viewBox="0 0 24 24" width="48" height="48" aria-hidden="true"><path fill="currentColor" d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                            <span class="stat-value" id="ui-nivel">Nivel 1</span>
+                            <span class="stat-label" id="ui-nivel-detalle">250 XP para el nivel 2</span>
+                        </div>
                         <div class="stat-card glass streak">
                             <svg class="metric-icon flame-icon" viewBox="0 0 24 24" width="48" height="48" aria-hidden="true"><path fill="currentColor" d="M11.71 1.74a1.01 1.01 0 0 0-1.46.22C8.75 3.94 6.75 6.78 6 9c-1.37 4.14-1 8.87 3 11 0 0 1.5-.75 2-1 3.5 1.5 7-1 7-5.5 0-3-1.63-5.75-2.25-6.75-.4-.64-1.31-.69-1.78-.1a17.29 17.29 0 0 0-2.26 3.85c-.09.19-.38.16-.43-.04-.63-2.61.12-6.62 1.43-8.72.06-.09.07-.22 0-.31z"/></svg>
                             <span class="stat-value" id="ui-racha">0 Días</span>
@@ -380,7 +405,7 @@
             </section>
         </main>
 
-        <!-- 7. Footer -->
+        <!-- 8. Footer -->
         <footer class="site-footer">
             <div class="container footer-main">
                 <section class="about-section" aria-labelledby="about-title">
@@ -424,6 +449,8 @@
     <script src="SimuladorNewton.js"></script>
     <script src="SimuladorOndas.js"></script>
     <script src="Laboratorio.js"></script>
+    <script src="bancoPreguntas.js"></script>
+    <script src="QuizXP.js"></script>
     <script src="Carrusel.js"></script>
     <script src="script.js"></script>
 </body>

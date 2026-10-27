@@ -6,6 +6,10 @@
  * no hay error acumulado de integración, por lo que la trayectoria real coincide con la prevista.
  *
  * Fases: LISTO → VUELO → ATERRIZADO. Cambiar un parámetro en vuelo cancela el disparo.
+ *
+ * Diana: un objetivo sobre el suelo a una distancia alcanzable con la gravedad actual.
+ * Si el proyectil aterriza dentro de ella → +20 XP (una vez por diana). Tras un acierto la diana
+ * se reubica lejos de la anterior en el siguiente lanzamiento: repetir el mismo tiro no suma.
  */
 class SimuladorParabolico extends SimuladorBase {
     static FASE = Object.freeze({ LISTO: 'listo', VUELO: 'vuelo', ATERRIZADO: 'aterrizado' });
@@ -14,6 +18,8 @@ class SimuladorParabolico extends SimuladorBase {
     static DURACION_VUELO_MAX_S = 3.5;   // vuelos más largos se reproducen acelerados (se indica ×N)
     static PX_POR_MS = 2.4;              // escala de los vectores velocidad (px por m/s)
     static SEGMENTOS_CURVA = 90;
+    static XP_DIANA = 20;
+    static V0_MAX = 30;                  // = max del slider de v0 (para que la diana siempre sea alcanzable)
 
     constructor(opciones) {
         super(opciones);
@@ -21,6 +27,15 @@ class SimuladorParabolico extends SimuladorBase {
         this.t = 0;
         this.escala = 1;      // px por metro
         this.anchoMundo = 10; // m
+        this.diana = { x: 0, radio: 1 };   // m (centro y semiancho)
+        this.dianaLograda = false;
+    }
+
+    /** La diana se coloca cuando ya se leyeron los sliders (depende de la gravedad actual). */
+    iniciar() {
+        super.iniciar();
+        this._colocarDiana();
+        this._recalcularEscala();
     }
 
     // ------------------------------------------------------------------
@@ -41,9 +56,11 @@ class SimuladorParabolico extends SimuladorBase {
     // Ganchos
     // ------------------------------------------------------------------
 
-    alCambiarParametro() {
+    alCambiarParametro(nombre) {
         this.fase = SimuladorParabolico.FASE.LISTO;
         this.t = 0;
+        // Una diana inalcanzable con la nueva gravedad (o ya acertada) se reubica
+        if (this.dianaLograda || (nombre === 'g' && this.diana.x > this._alcanceMaximo() * 0.9)) this._colocarDiana();
         this._recalcularEscala();
         this._sincronizarBotones();
     }
@@ -51,9 +68,17 @@ class SimuladorParabolico extends SimuladorBase {
     alAccion(accion, boton) {
         const { FASE } = SimuladorParabolico;
         if (accion === 'lanzar') {
+            if (this.dianaLograda) {
+                this._colocarDiana();
+                this._recalcularEscala();
+            }
             this.t = 0;
             this.fase = FASE.VUELO;
         } else if (accion === 'reiniciar') {
+            if (this.dianaLograda) {
+                this._colocarDiana();
+                this._recalcularEscala();
+            }
             this.t = 0;
             this.fase = FASE.LISTO;
         } else if (accion === 'gravedad') {
@@ -74,8 +99,38 @@ class SimuladorParabolico extends SimuladorBase {
         if (this.t >= this.tiempoVuelo) {
             this.t = this.tiempoVuelo;
             this.fase = FASE.ATERRIZADO;
+            this._evaluarDiana();
             this._sincronizarBotones();
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Diana (recompensa)
+    // ------------------------------------------------------------------
+
+    _alcanceMaximo() {
+        return (SimuladorParabolico.V0_MAX ** 2) / (this.params.g || 9.8);
+    }
+
+    /** Distancia aleatoria alcanzable; si hubo una diana previa, la nueva queda claramente lejos. */
+    _colocarDiana() {
+        const maximo = Math.min(this._alcanceMaximo(), 400);
+        const anterior = this.diana.x;
+        let x;
+        let intentos = 0;
+        do {
+            x = maximo * (0.25 + Math.random() * 0.6);
+            intentos++;
+        } while (anterior > 0 && Math.abs(x - anterior) < maximo * 0.15 && intentos < 20);
+        this.diana.x = x;
+        this.diana.radio = Math.max(1, x * 0.05);
+        this.dianaLograda = false;
+    }
+
+    _evaluarDiana() {
+        if (this.dianaLograda || Math.abs(this.alcance - this.diana.x) > this.diana.radio) return;
+        this.dianaLograda = true;
+        this.lograr(SimuladorParabolico.XP_DIANA, '¡Diana en el tiro parabólico!');
     }
 
     // ------------------------------------------------------------------
@@ -98,7 +153,7 @@ class SimuladorParabolico extends SimuladorBase {
         if (!this.p) return;
         const area = this._areaGrafica();
         const relacion = area.alto / area.ancho;
-        const R = this.alcance * 1.08;
+        const R = Math.max(this.alcance, this.diana.x + this.diana.radio) * 1.08;   // la diana siempre a la vista
         const H = this.alturaMaxima * 1.15;
         const { ANCHOS_MUNDO } = SimuladorParabolico;
         this.anchoMundo = ANCHOS_MUNDO.find((w) => w >= R && w * relacion >= H) ?? ANCHOS_MUNDO[ANCHOS_MUNDO.length - 1];
@@ -132,6 +187,7 @@ class SimuladorParabolico extends SimuladorBase {
         p.background(this.c.fondo);
 
         this._dibujarCuadricula(p, area);
+        this._dibujarDiana(p, area);
         this._dibujarCurva(p, area, this.tiempoVuelo, this.alfa('tenue', 110), 2, true);
         if (this.fase !== FASE.LISTO) this._dibujarCurva(p, area, this.t, this.c.cian, 3, false);
         this._dibujarCanon(p, area);
@@ -199,6 +255,21 @@ class SimuladorParabolico extends SimuladorBase {
         if (discontinua) p.drawingContext.setLineDash([]);
     }
 
+    _dibujarDiana(p, area) {
+        const x1 = area.x0 + (this.diana.x - this.diana.radio) * this.escala;
+        const ancho = Math.max(6, this.diana.radio * 2 * this.escala);
+        const color = this.dianaLograda ? 'teal' : 'violeta';
+        p.noStroke();
+        p.fill(this.alfa(color, 70));
+        p.rect(x1, area.y0 - 6, ancho, 6, 2);
+        p.fill(this.c[color]);
+        p.rect(x1 + ancho / 2 - 1, area.y0 - 30, 2, 24);                 // mástil
+        p.triangle(x1 + ancho / 2 + 1, area.y0 - 30, x1 + ancho / 2 + 15, area.y0 - 25, x1 + ancho / 2 + 1, area.y0 - 20);
+        p.textSize(11);
+        p.textAlign(p.CENTER, p.BOTTOM);
+        p.text(this.dianaLograda ? `¡Diana! +${SimuladorParabolico.XP_DIANA} XP` : `Diana: ${SimuladorBase.formato(this.diana.x)} m`, x1 + ancho / 2, area.y0 - 34);
+    }
+
     _dibujarCanon(p, area) {
         const theta = this.theta;
         p.push();
@@ -246,8 +317,8 @@ class SimuladorParabolico extends SimuladorBase {
             const px = area.x0 + this.alcance * this.escala;
             p.fill(this.c.teal);
             p.circle(px, area.y0, 8);
-            p.textAlign(p.CENTER, p.BOTTOM);
-            p.text(`R = ${SimuladorBase.formato(this.alcance)} m`, Math.min(px, p.width - 50), area.y0 - 10);
+            p.textAlign(p.RIGHT, p.BOTTOM);   // a la izquierda del impacto: no choca con la bandera de la diana
+            p.text(`R = ${SimuladorBase.formato(this.alcance)} m`, px - 10, area.y0 - 6);
         }
     }
 

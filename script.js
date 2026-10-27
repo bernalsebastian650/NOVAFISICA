@@ -2,12 +2,14 @@
  * NOVAFÍSICA - Controlador de interfaz (Emil Kowalski Edition)
  *
  * Orden de carga (index.html): Cinematica.js → GestorProgreso.js → RetoParabolico.js → SimuladorBase.js →
- *   SimuladorParabolico.js → SimuladorNewton.js → SimuladorOndas.js → Laboratorio.js → Carrusel.js → script.js
+ *   SimuladorParabolico.js → SimuladorNewton.js → SimuladorOndas.js → Laboratorio.js →
+ *   bancoPreguntas.js → QuizXP.js → Carrusel.js → script.js
  *
  *   GestorProgreso      → estado y localStorage (sin DOM)
  *   RetoParabolico      → reto gamificado de #desafios en p5.js (sin estado de usuario)
  *   Laboratorio         → pestañas de #interactivo; un solo simulador p5 vivo a la vez
  *   SimuladorParabolico / SimuladorNewton / SimuladorOndas → simuladores del laboratorio (SimuladorBase)
+ *   QuizXP              → quiz de 5 preguntas con rotación del banco (historial vía GestorProgreso)
  *   Carrusel            → galería automática de #interactivo (sin estado de usuario)
  *   script.js           → une las piezas: toasts, render del progreso, login y scroll
  */
@@ -119,12 +121,23 @@ class InterfazProgreso {
 
     constructor(avisos) {
         this._avisos = avisos;
+        const $ = (id) => document.getElementById(id);
         this._elementos = {
-            perfil: document.getElementById('user-profile-display'),
-            xp: document.getElementById('ui-xp'),
-            racha: document.getElementById('ui-racha'),
-            vidas: document.getElementById('ui-vidas'),
-            insignias: document.getElementById('ui-insignias')
+            xp: $('ui-xp'),
+            racha: $('ui-racha'),
+            nivel: $('ui-nivel'),
+            nivelDetalle: $('ui-nivel-detalle'),
+            vidas: $('ui-vidas'),
+            insignias: $('ui-insignias')
+        };
+        // Widget de resumen del header (nivel, barra al siguiente nivel, XP total y racha)
+        this._widget = {
+            enlace: $('pw-enlace'),
+            nombre: $('pw-nombre'),
+            nivel: $('pw-nivel'),
+            barra: $('pw-barra'),
+            xp: $('pw-xp'),
+            racha: $('pw-racha')
         };
         this._firmaVidas = null;
         this._firmaInsignias = null;
@@ -138,13 +151,36 @@ class InterfazProgreso {
     }
 
     renderizar(estado) {
-        const { perfil, xp, racha } = this._elementos;
-        if (perfil) perfil.textContent = `Explorador: ${estado.email.split('@')[0]}`;
-        if (xp) xp.textContent = `${estado.xp} XP`;
-        if (racha) racha.textContent = `${estado.racha} Días`;
+        const { xp, racha, nivel, nivelDetalle } = this._elementos;
+        const n = GestorProgreso.nivel(estado.puntosXP);
+        const dias = `${estado.rachaDias} ${estado.rachaDias === 1 ? 'Día' : 'Días'}`;
 
+        if (xp) xp.textContent = `${estado.puntosXP} XP`;
+        if (racha) racha.textContent = dias;
+        if (nivel) nivel.textContent = `Nivel ${n.nivel}`;
+        if (nivelDetalle) nivelDetalle.textContent = `${n.faltante} XP para el nivel ${n.nivel + 1}`;
+
+        this._renderizarWidget(estado, n, dias);
         this._renderizarVidas(estado.vidas);
         this._renderizarInsignias(estado.insignias);
+    }
+
+    _renderizarWidget(estado, n, dias) {
+        const w = this._widget;
+        if (w.nombre) w.nombre.textContent = estado.email.split('@')[0];
+        if (w.nivel) w.nivel.textContent = `Nv ${n.nivel}`;
+        if (w.xp) w.xp.textContent = `${estado.puntosXP} XP`;
+        if (w.racha) w.racha.textContent = String(estado.rachaDias);
+        if (w.enlace) {
+            w.enlace.setAttribute('aria-label',
+                `Nivel ${n.nivel}, ${estado.puntosXP} XP, racha de ${dias.toLowerCase()}. Ver Mi Nivel`);
+        }
+        if (w.barra) {
+            const porcentaje = Math.round(n.progreso * 100);
+            w.barra.style.setProperty('--progreso', n.progreso);   // dato; el relleno escala con transform en CSS
+            w.barra.setAttribute('aria-valuenow', String(porcentaje));
+            w.barra.setAttribute('aria-valuetext', `${n.xpEnNivel} de ${n.xpPorNivel} XP hacia el nivel ${n.nivel + 1}`);
+        }
     }
 
     /** Solo reconstruye el DOM si las vidas cambiaron (evita reiniciar hovers/animaciones). */
@@ -207,7 +243,10 @@ class InterfazProgreso {
                 break;
             case 'xp':
                 this._pulsarXP();
-                aviso(`+${evento.cantidad} XP Obtenida`, 'success');
+                aviso(evento.motivo ? `+${evento.cantidad} XP · ${evento.motivo}` : `+${evento.cantidad} XP Obtenida`, 'success');
+                break;
+            case 'nivel':
+                aviso(`¡Subiste al nivel ${evento.nivel}!`, 'success');
                 break;
             case 'insignia': {
                 const info = InterfazProgreso.INSIGNIAS[evento.id];
@@ -225,7 +264,7 @@ class InterfazProgreso {
                 aviso('Energía vital recargada. ¡Nuevo día, nuevos retos!', 'info');
                 break;
             case 'racha-incrementada':
-                aviso(`¡Racha de ${evento.racha} días! Sigue así.`, 'success');
+                aviso(`¡Racha de ${evento.rachaDias} días! Sigue así.`, 'success');
                 break;
             case 'racha-reiniciada':
                 aviso('Perdiste tu racha. ¡Empieza una nueva hoy!', 'error');
@@ -286,7 +325,7 @@ function iniciarSimulador() {
         contenedor: document.getElementById('p5-game-container'),
         colores: leerColoresSimulador(),
         alResolver: (resultado) => {
-            if (resultado === 'acierto') gestor.sumarXP(XP_POR_ACIERTO);
+            if (resultado === 'acierto') gestor.sumarXP(XP_POR_ACIERTO, 'Reto de tiro parabólico');
             else gestor.restarVida();
         }
     });
@@ -313,10 +352,27 @@ function iniciarLaboratorio() {
     if (laboratorio || !raiz || typeof p5 === 'undefined') return;
 
     const colores = leerColoresLaboratorio();
+    const alLograr = (xp, motivo) => gestor.sumarXP(xp, motivo);   // los simuladores no conocen GestorProgreso
     laboratorio = new Laboratorio(raiz, {
-        parabolico: (panel) => new SimuladorParabolico({ panel, colores }),
-        newton: (panel) => new SimuladorNewton({ panel, colores }),
-        ondas: (panel) => new SimuladorOndas({ panel, colores })
+        parabolico: (panel) => new SimuladorParabolico({ panel, colores, alLograr }),
+        newton: (panel) => new SimuladorNewton({ panel, colores, alLograr }),
+        ondas: (panel) => new SimuladorOndas({ panel, colores, alLograr })
+    });
+}
+
+let quiz = null;
+
+/** Idempotente. El historial de rotación vive en el registro del usuario (GestorProgreso → localStorage). */
+function iniciarQuiz() {
+    const contenedor = document.getElementById('quiz-xp-app');
+    if (quiz || !contenedor) return;
+    quiz = new QuizXP({
+        contenedor,
+        banco: BANCO_PREGUNTAS,
+        temas: TEMAS_QUIZ,
+        obtenerHistorial: () => gestor.historialQuiz,
+        guardarHistorial: (ids) => gestor.guardarHistorialQuiz(ids),
+        alAcertar: (xp) => gestor.sumarXP(xp, 'Quiz XP')
     });
 }
 
@@ -350,6 +406,7 @@ function initLogin() {
                 mainContent.classList.add('visible');
                 iniciarSimulador(); // el contenedor ya tiene layout: el canvas toma su ancho real
                 iniciarLaboratorio();
+                iniciarQuiz();
             });
         });
     };
