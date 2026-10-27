@@ -56,4 +56,35 @@ class Cinematica {
     static velocidadVertical({ v0, theta }, t, g = Cinematica.GRAVEDAD) {
         return v0 * Math.sin(theta) - g * t;
     }
+
+    // ------------------------------------------------------------------
+    // Forma métrica (laboratorio de #interactivo): y física hacia arriba, sin inversión de canvas.
+    // Las unidades son libres (m, m/s, m/s²); la conversión a píxeles la hace el simulador.
+    // ------------------------------------------------------------------
+
+    /**
+     * Estado exacto (solución analítica) en el instante t, partiendo del origen.
+     * @returns {{x: number, y: number, vx: number, vy: number}}
+     */
+    static estado(v0, theta, g, t) {
+        const vx = v0 * Math.cos(theta);
+        const vy0 = v0 * Math.sin(theta);
+        return { x: vx * t, y: vy0 * t - 0.5 * g * t * t, vx, vy: vy0 - g * t };
+    }
+
+    /** Tiempo hasta volver a la altura de lanzamiento: T = 2·v0·sin(θ) / g */
+    static tiempoVuelo(v0, theta, g) {
+        return (2 * v0 * Math.sin(theta)) / g;
+    }
+
+    /** Alcance horizontal: R = v0²·sin(2θ) / g */
+    static alcance(v0, theta, g) {
+        return (v0 * v0 * Math.sin(2 * theta)) / g;
+    }
+
+    /** Altura máxima: H = v0²·sin²(θ) / (2g) */
+    static alturaMaxima(v0, theta, g) {
+        const vy0 = v0 * Math.sin(theta);
+        return (vy0 * vy0) / (2 * g);
+    }
 }

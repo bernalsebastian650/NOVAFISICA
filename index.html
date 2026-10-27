@@ -8,7 +8,7 @@
     <!-- Fuentes de Google: Poppins y Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
     <!-- p5.js para interactividad real -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
     <!-- Estilos de la aplicación -->
@@ -263,6 +263,88 @@
                             <button class="dot" aria-label="Ir a la imagen 5"></button>
                         </div>
                     </div>
+
+                    <!-- Simuladores del laboratorio (orquestados por Laboratorio.js; un solo canvas p5 vivo a la vez) -->
+                    <div class="lab" id="laboratorio">
+                        <div class="lab-tabs" role="tablist" aria-label="Simuladores del laboratorio">
+                            <button type="button" class="lab-tab" role="tab" id="tab-parabolico" aria-controls="panel-parabolico" aria-selected="true" data-simulador="parabolico">🎯 Tiro Parabólico</button>
+                            <button type="button" class="lab-tab" role="tab" id="tab-newton" aria-controls="panel-newton" aria-selected="false" tabindex="-1" data-simulador="newton">📦 2.ª Ley de Newton</button>
+                            <button type="button" class="lab-tab" role="tab" id="tab-ondas" aria-controls="panel-ondas" aria-selected="false" tabindex="-1" data-simulador="ondas">🌊 Generador de Ondas</button>
+                        </div>
+                    <div class="lab-panel" id="panel-parabolico" role="tabpanel" aria-labelledby="tab-parabolico" tabindex="0">
+                        <div class="lab-canvas" data-lienzo role="img" aria-label="Simulación de tiro parabólico con trayectoria prevista y vectores de velocidad"></div>
+                        <div class="lab-controls" data-controles>
+                                <div class="lab-control">
+                                    <label for="pb-v0">Velocidad inicial <span class="lab-symbol">v₀</span></label>
+                                    <output for="pb-v0">18 m/s</output>
+                                    <input type="range" id="pb-v0" data-param="v0" min="5" max="30" step="0.5" value="18" data-unidad=" m/s" data-decimales="1">
+                                </div>
+                                <div class="lab-control">
+                                    <label for="pb-angulo">Ángulo de lanzamiento <span class="lab-symbol">θ</span></label>
+                                    <output for="pb-angulo">45°</output>
+                                    <input type="range" id="pb-angulo" data-param="angulo" min="10" max="85" step="1" value="45" data-unidad="°" data-decimales="0">
+                                </div>
+                                <div class="lab-control">
+                                    <label for="pb-g">Gravedad <span class="lab-symbol">g</span></label>
+                                    <output for="pb-g">9.8 m/s²</output>
+                                    <input type="range" id="pb-g" data-param="g" min="1.6" max="24.8" step="0.1" value="9.8" data-unidad=" m/s²" data-decimales="1">
+                                </div>
+                                <div class="lab-presets" role="group" aria-label="Gravedad de astros">
+                                    <button type="button" class="lab-chip" data-accion="gravedad" data-valor="1.6" aria-pressed="false">Luna</button>
+                                    <button type="button" class="lab-chip" data-accion="gravedad" data-valor="3.7" aria-pressed="false">Marte</button>
+                                    <button type="button" class="lab-chip" data-accion="gravedad" data-valor="9.8" aria-pressed="true">Tierra</button>
+                                    <button type="button" class="lab-chip" data-accion="gravedad" data-valor="24.8" aria-pressed="false">Júpiter</button>
+                                </div>
+                            <div class="lab-actions">
+                                <button type="button" class="btn btn-nebula lab-btn-primary" data-accion="lanzar">Lanzar</button>
+                                <button type="button" class="lab-btn" data-accion="reiniciar">Reiniciar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lab-panel" id="panel-newton" role="tabpanel" aria-labelledby="tab-newton" tabindex="0" hidden>
+                        <div class="lab-canvas" data-lienzo role="img" aria-label="Simulación de la segunda ley de Newton: bloque con fuerzas aplicada, de fricción y neta, y gráfica de velocidad contra tiempo"></div>
+                        <div class="lab-controls" data-controles>
+                                <div class="lab-control">
+                                    <label for="nw-masa">Masa <span class="lab-symbol">m</span></label>
+                                    <output for="nw-masa">5 kg</output>
+                                    <input type="range" id="nw-masa" data-param="masa" min="1" max="20" step="0.5" value="5" data-unidad=" kg" data-decimales="1">
+                                </div>
+                                <div class="lab-control">
+                                    <label for="nw-fuerza">Fuerza aplicada <span class="lab-symbol">F</span></label>
+                                    <output for="nw-fuerza">30 N</output>
+                                    <input type="range" id="nw-fuerza" data-param="fuerza" min="0" max="100" step="1" value="30" data-unidad=" N" data-decimales="0">
+                                </div>
+                                <div class="lab-control">
+                                    <label for="nw-friccion">Coeficiente de fricción <span class="lab-symbol">μ</span></label>
+                                    <output for="nw-friccion">0.2</output>
+                                    <input type="range" id="nw-friccion" data-param="friccion" min="0" max="0.6" step="0.01" value="0.2" data-unidad="" data-decimales="2">
+                                </div>
+                            <div class="lab-actions">
+                                <button type="button" class="btn btn-nebula lab-btn-primary" data-accion="alternar" aria-pressed="false">Iniciar</button>
+                                <button type="button" class="lab-btn" data-accion="reiniciar">Reiniciar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lab-panel" id="panel-ondas" role="tabpanel" aria-labelledby="tab-ondas" tabindex="0" hidden>
+                        <div class="lab-canvas" data-lienzo role="img" aria-label="Generador de ondas transversales en una cuerda con cotas de amplitud y longitud de onda"></div>
+                        <div class="lab-controls" data-controles>
+                                <div class="lab-control">
+                                    <label for="on-frecuencia">Frecuencia <span class="lab-symbol">f</span></label>
+                                    <output for="on-frecuencia">1 Hz</output>
+                                    <input type="range" id="on-frecuencia" data-param="frecuencia" min="0.2" max="3" step="0.1" value="1" data-unidad=" Hz" data-decimales="1">
+                                </div>
+                                <div class="lab-control">
+                                    <label for="on-amplitud">Amplitud <span class="lab-symbol">A</span></label>
+                                    <output for="on-amplitud">25 cm</output>
+                                    <input type="range" id="on-amplitud" data-param="amplitud" min="5" max="50" step="1" value="25" data-unidad=" cm" data-decimales="0">
+                                </div>
+                            <div class="lab-actions">
+                                <button type="button" class="btn btn-nebula lab-btn-primary" data-accion="alternar" aria-pressed="true">Pausar</button>
+                                <button type="button" class="lab-btn" data-accion="reiniciar">Reiniciar</button>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
                 </div>
             </section>
 
@@ -301,13 +383,30 @@
         <!-- 7. Footer -->
         <footer class="site-footer">
             <div class="container footer-main">
-                <article class="about-card" aria-labelledby="about-title">
-                    <span class="section-badge footer-badge">¿Quiénes Somos?</span>
-                    <h2 class="about-title" id="about-title">¡Hola! Conoce a las mentes detrás de NOVAFÍSICA</h2>
-                    <p class="about-text">
-                        Somos <strong>María José Bernal Pérez</strong>, <strong>Allison Sarai González Plazas</strong> y <strong>Joseph Samuel Correa Mesa</strong>, estudiantes de <strong>11-B</strong> del <strong>Colegio Alejandro de Humboldt</strong> aquí en Sogamoso. Creamos esta plataforma como nuestro proyecto de investigación, pensado especialmente para apoyar e inspirar a los compañeros de grado <strong>9-A</strong>. Nuestro objetivo es demostrar que la física no tiene por qué ser difícil ni aburrida, sino una experiencia dinámica llena de desafíos, videos interactivos y juegos.
-                    </p>
-                </article>
+                <section class="about-section" aria-labelledby="about-title">
+                    <div class="section-badge about-badge"><span class="badge-icon" aria-hidden="true">💖</span> Proyecto de Investigación Educativa</div>
+                    <h2 class="institution-title" id="about-title">Colegio Alejandro de Humboldt • Sogamoso</h2>
+                    <blockquote class="about-quote-card glass">
+                        <p>"Somos <strong class="highlight-cyan">María José Bernal Pérez</strong>, <strong class="highlight-cyan">Allison Sarai González Plazas</strong> y <strong class="highlight-cyan">Joseph Samuel Correa Mesa</strong>, estudiantes de 11-B del Colegio Alejandro de Humboldt aquí en Sogamoso. Creamos esta plataforma como nuestro proyecto de investigación, pensado especialmente para apoyar e inspirar a los compañeros de grado 9-A. Nuestro objetivo es demostrar que la física no tiene por qué ser difícil ni aburrida, sino una experiencia dinámica llena de desafíos, videos interactivos y juegos."</p>
+                    </blockquote>
+                    <ul class="team-cards-grid" aria-label="Integrantes del equipo">
+                        <li class="team-member-card glass member--cyan">
+                            <svg class="member-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/></svg>
+                            <h3 class="member-name">María José Bernal Pérez</h3>
+                            <span class="member-role">Estudiante 11-B</span>
+                        </li>
+                        <li class="team-member-card glass member--violet">
+                            <svg class="member-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/></svg>
+                            <h3 class="member-name">Allison Sarai González Plazas</h3>
+                            <span class="member-role">Estudiante 11-B</span>
+                        </li>
+                        <li class="team-member-card glass member--teal">
+                            <svg class="member-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/></svg>
+                            <h3 class="member-name">Joseph Samuel Correa Mesa</h3>
+                            <span class="member-role">Estudiante 11-B</span>
+                        </li>
+                    </ul>
+                </section>
             </div>
             <div class="container footer-bottom">
                 <span class="footer-author">Autor: <strong>Ing. Jhon Sebastian Bernal Maldonado</strong></span>
@@ -319,7 +418,12 @@
     <div id="toast-container"></div>
     <script src="Cinematica.js"></script>
     <script src="GestorProgreso.js"></script>
+    <script src="RetoParabolico.js"></script>
+    <script src="SimuladorBase.js"></script>
     <script src="SimuladorParabolico.js"></script>
+    <script src="SimuladorNewton.js"></script>
+    <script src="SimuladorOndas.js"></script>
+    <script src="Laboratorio.js"></script>
     <script src="Carrusel.js"></script>
     <script src="script.js"></script>
 </body>

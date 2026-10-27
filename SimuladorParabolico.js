@@ -1,401 +1,291 @@
 /**
- * NOVAFÍSICA - Simulador de tiro parabólico (p5.js en modo instancia).
+ * NOVAFÍSICA - Laboratorio: Tiro Parabólico (#interactivo, pestaña 1).
  *
- * Responsabilidades:
- *   - Renderizado y entrada de usuario. La física vive en Cinematica.js.
- *   - No toca el progreso ni el DOM externo: informa del resultado con `alResolver('acierto'|'fallo')`.
+ * Parámetros (sliders): v0 [m/s], angulo [°], g [m/s²]. Preajustes de gravedad por astro.
+ * La posición se evalúa con la solución analítica (Cinematica.estado) en cada paso fijo:
+ * no hay error acumulado de integración, por lo que la trayectoria real coincide con la prevista.
  *
- * Máquina de estados (cada disparo se resuelve UNA sola vez):
- *   LISTO → APUNTANDO → VUELO → RESUELTO → (pausa) → LISTO
- *
- * Entrada: Pointer Events con captura sobre el <canvas> (unifica mouse y táctil).
- * Nada escucha a `window`, de modo que clics en la interfaz o el scroll de la página
- * nunca disparan el simulador (`touch-action: none` en CSS evita el scroll solo sobre el canvas).
+ * Fases: LISTO → VUELO → ATERRIZADO. Cambiar un parámetro en vuelo cancela el disparo.
  */
-class SimuladorParabolico {
-    static ALTO = 400;
-    static ANCHO_MIN = 280;
-    static ANCHO_MAX = 800;
-    static ALTO_SUELO = 20;
-    static CANON = Object.freeze({ x: 50, radio: 30 });
-    static OBJETIVO = Object.freeze({ ancho: 45, alto: 40 });
-    static RADIO_PROYECTIL = 8;
-    static ARRASTRE_MIN = 12;           // px: por debajo se cancela el disparo
-    static PASO_MAX_S = 1 / 120;        // subpasos de física: evita que un proyectil rápido atraviese el objetivo
-    static DT_MAX_MS = 50;              // tope por frame (pestaña en segundo plano, pausa de bucle)
-    static PAUSA_RESULTADO_MS = 1200;
-    static PUNTOS_GUIA = 12;
-    static PASO_GUIA_S = 0.06;
+class SimuladorParabolico extends SimuladorBase {
+    static FASE = Object.freeze({ LISTO: 'listo', VUELO: 'vuelo', ATERRIZADO: 'aterrizado' });
+    static MARGEN = Object.freeze({ izq: 52, der: 20, sup: 20, inf: 34 });
+    static ANCHOS_MUNDO = [5, 10, 20, 50, 100, 200, 500, 1000];   // m: escalas "redondas" de la cuadrícula
+    static DURACION_VUELO_MAX_S = 3.5;   // vuelos más largos se reproducen acelerados (se indica ×N)
+    static PX_POR_MS = 2.4;              // escala de los vectores velocidad (px por m/s)
+    static SEGMENTOS_CURVA = 90;
 
-    static FASE = Object.freeze({
-        LISTO: 'listo',
-        APUNTANDO: 'apuntando',
-        VUELO: 'vuelo',
-        RESUELTO: 'resuelto'
-    });
-
-    /**
-     * @param {{contenedor: HTMLElement, colores: Record<string,string>, alResolver: (r: 'acierto'|'fallo') => void}} opciones
-     *   colores: fondo, estructura, objetivo, canon, guia, mensaje (cadenas CSS)
-     */
-    constructor({ contenedor, colores, alResolver }) {
-        this._contenedor = contenedor;
-        this._colores = colores;
-        this._alResolver = alResolver;
-
-        this._fase = SimuladorParabolico.FASE.LISTO;
-        this._bloqueo = null;                 // {mensaje} mientras no haya vidas
-        this._destruido = false;
-
-        this._ancla = null;
-        this._puntero = null;
-        this._punteroId = null;
-
-        this._lanzamiento = null;
-        this._t = 0;
-        this._proyectil = { x: 0, y: 0 };     // objeto único reutilizado: sin asignaciones por frame
-        this._objetivo = { x: 0, y: 0, ...SimuladorParabolico.OBJETIVO };
-        this._mensajeResultado = '';
-        this._temporizadorReinicio = null;
-
-        this._p = null;
-        this._elementoCanvas = null;
-        this._manejadores = null;
-        this._observador = null;
-
-        this._p5 = new p5((p) => this._definirSketch(p));
+    constructor(opciones) {
+        super(opciones);
+        this.fase = SimuladorParabolico.FASE.LISTO;
+        this.t = 0;
+        this.escala = 1;      // px por metro
+        this.anchoMundo = 10; // m
     }
 
     // ------------------------------------------------------------------
-    // API pública
+    // Derivados de los parámetros
     // ------------------------------------------------------------------
 
-    /** Bloquea/desbloquea los disparos (p. ej. sin vidas). Cancela un apuntado en curso. */
-    establecerBloqueo(activo, mensaje = '') {
-        this._bloqueo = activo ? { mensaje } : null;
-        if (activo && this._fase === SimuladorParabolico.FASE.APUNTANDO) this._cancelarApuntado();
-    }
+    get theta() { return (this.params.angulo * Math.PI) / 180; }
+    get tiempoVuelo() { return Cinematica.tiempoVuelo(this.params.v0, this.theta, this.params.g); }
+    get alcance() { return Cinematica.alcance(this.params.v0, this.theta, this.params.g); }
+    get alturaMaxima() { return Cinematica.alturaMaxima(this.params.v0, this.theta, this.params.g); }
 
-    /** Libera listeners, temporizadores, observador y la instancia de p5. */
-    destruir() {
-        this._destruido = true;
-        clearTimeout(this._temporizadorReinicio);
-        if (this._observador) this._observador.disconnect();
-        if (this._elementoCanvas && this._manejadores) {
-            Object.entries(this._manejadores).forEach(([tipo, fn]) => this._elementoCanvas.removeEventListener(tipo, fn));
-        }
-        this._p5.remove();
+    /** Factor de reproducción: el vuelo nunca dura más de DURACION_VUELO_MAX_S en pantalla. */
+    get velocidadReproduccion() {
+        return Math.max(1, this.tiempoVuelo / SimuladorParabolico.DURACION_VUELO_MAX_S);
     }
 
     // ------------------------------------------------------------------
-    // Ciclo de vida de p5
+    // Ganchos
     // ------------------------------------------------------------------
 
-    _definirSketch(p) {
-        p.setup = () => {
-            this._p = p;
-            const lienzo = p.createCanvas(this._anchoDisponible(), SimuladorParabolico.ALTO);
-            lienzo.parent(this._contenedor);
-
-            this._colorP5 = Object.fromEntries(
-                Object.entries(this._colores).map(([clave, valor]) => [clave, p.color(valor)])
-            );
-
-            this._vincularEventos(lienzo.elt);
-            this._observarVisibilidad(p);
-            this._prepararRonda();
-        };
-
-        p.draw = () => {
-            if (this._fase === SimuladorParabolico.FASE.VUELO) this._avanzar(p.deltaTime);
-            this._dibujar(p);
-        };
-
-        p.windowResized = () => this._redimensionar();
+    alCambiarParametro() {
+        this.fase = SimuladorParabolico.FASE.LISTO;
+        this.t = 0;
+        this._recalcularEscala();
+        this._sincronizarBotones();
     }
 
-    /** Pausa el bucle de dibujo cuando el canvas no está en pantalla (ahorra CPU/batería). */
-    _observarVisibilidad(p) {
-        if (typeof IntersectionObserver === 'undefined') return;
-        this._observador = new IntersectionObserver(([entrada]) => {
-            if (entrada.isIntersecting) p.loop(); else p.noLoop();
-        });
-        this._observador.observe(this._contenedor);
-    }
-
-    _anchoDisponible() {
-        const { ANCHO_MIN, ANCHO_MAX } = SimuladorParabolico;
-        return Math.max(ANCHO_MIN, Math.min(this._contenedor.clientWidth, ANCHO_MAX));
-    }
-
-    _redimensionar() {
-        const p = this._p;
-        if (!p) return;
-        const ancho = this._anchoDisponible();
-        if (ancho === p.width) return;
-
-        if (this._fase === SimuladorParabolico.FASE.APUNTANDO) this._cancelarApuntado();
-        const factor = ancho / p.width;
-        p.resizeCanvas(ancho, SimuladorParabolico.ALTO);
-
-        const o = this._objetivo;
-        o.x = Math.min(Math.max(o.x * factor, 0), ancho - o.ancho);
-    }
-
-    // ------------------------------------------------------------------
-    // Entrada (Pointer Events sobre el canvas)
-    // ------------------------------------------------------------------
-
-    _vincularEventos(elemento) {
-        this._elementoCanvas = elemento;
-        this._manejadores = {
-            pointerdown: (e) => this._alPresionar(e),
-            pointermove: (e) => this._alMover(e),
-            pointerup: (e) => this._alSoltar(e),
-            pointercancel: (e) => this._alCancelar(e)
-        };
-        Object.entries(this._manejadores).forEach(([tipo, fn]) => elemento.addEventListener(tipo, fn));
-    }
-
-    /** Coordenadas del puntero en espacio de canvas, acotadas a sus límites. */
-    _coordenadas(e) {
-        const rect = this._elementoCanvas.getBoundingClientRect();
-        const p = this._p;
-        const x = (e.clientX - rect.left) * (p.width / rect.width);
-        const y = (e.clientY - rect.top) * (p.height / rect.height);
-        return {
-            x: Math.min(Math.max(x, 0), p.width),
-            y: Math.min(Math.max(y, 0), p.height)
-        };
-    }
-
-    _alPresionar(e) {
+    alAccion(accion, boton) {
         const { FASE } = SimuladorParabolico;
-        if (this._fase !== FASE.LISTO || this._bloqueo) return;
-        if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
-
-        e.preventDefault();
-        this._elementoCanvas.setPointerCapture(e.pointerId); // el arrastre sigue aunque el puntero salga del canvas
-        this._punteroId = e.pointerId;
-        this._ancla = this._coordenadas(e);
-        this._puntero = { ...this._ancla };
-        this._fase = FASE.APUNTANDO;
-    }
-
-    _alMover(e) {
-        if (e.pointerId !== this._punteroId || this._fase !== SimuladorParabolico.FASE.APUNTANDO) return;
-        this._puntero = this._coordenadas(e);
-    }
-
-    _alSoltar(e) {
-        if (e.pointerId !== this._punteroId) return;
-        this._liberarPuntero();
-        if (this._fase !== SimuladorParabolico.FASE.APUNTANDO) return;
-
-        this._puntero = this._coordenadas(e);
-        const lanzamiento = this._calcularLanzamiento();
-        if (lanzamiento) this._disparar(lanzamiento); else this._cancelarApuntado();
-    }
-
-    _alCancelar(e) {
-        if (e.pointerId !== this._punteroId) return;
-        this._cancelarApuntado();
-    }
-
-    _liberarPuntero() {
-        try {
-            this._elementoCanvas.releasePointerCapture(this._punteroId);
-        } catch (error) {
-            // el puntero ya no estaba capturado
+        if (accion === 'lanzar') {
+            this.t = 0;
+            this.fase = FASE.VUELO;
+        } else if (accion === 'reiniciar') {
+            this.t = 0;
+            this.fase = FASE.LISTO;
+        } else if (accion === 'gravedad') {
+            this.fijarParametro('g', boton.dataset.valor);
         }
-        this._punteroId = null;
+        this._sincronizarBotones();
     }
 
-    _cancelarApuntado() {
-        if (this._punteroId !== null) this._liberarPuntero();
-        this._ancla = null;
-        this._puntero = null;
-        this._fase = SimuladorParabolico.FASE.LISTO;
+    alRedimensionar() {
+        this._recalcularEscala();
+        this._sincronizarBotones();
+    }
+
+    actualizar(dt) {
+        const { FASE } = SimuladorParabolico;
+        if (this.fase !== FASE.VUELO) return;
+        this.t += dt * this.velocidadReproduccion;
+        if (this.t >= this.tiempoVuelo) {
+            this.t = this.tiempoVuelo;
+            this.fase = FASE.ATERRIZADO;
+            this._sincronizarBotones();
+        }
     }
 
     // ------------------------------------------------------------------
-    // Física y estado de la ronda
+    // Escala del mundo
     // ------------------------------------------------------------------
 
-    _sueloY() {
-        return this._p.height - SimuladorParabolico.ALTO_SUELO;
-    }
-
-    /** Punto de lanzamiento: el proyectil reposa sobre el suelo, en la boca del cañón. */
-    _origen() {
+    _areaGrafica() {
+        const { MARGEN } = SimuladorParabolico;
+        const p = this.p;
         return {
-            x: SimuladorParabolico.CANON.x,
-            y: this._sueloY() - SimuladorParabolico.RADIO_PROYECTIL
+            x0: MARGEN.izq,
+            y0: p.height - MARGEN.inf,      // suelo (y = 0 m)
+            ancho: p.width - MARGEN.izq - MARGEN.der,
+            alto: p.height - MARGEN.sup - MARGEN.inf
         };
     }
 
-    /** @returns {{x0,y0,v0,theta}|null} null si el arrastre es demasiado corto */
-    _calcularLanzamiento() {
-        const dx = this._ancla.x - this._puntero.x;
-        const dy = this._ancla.y - this._puntero.y;
-        if (Math.hypot(dx, dy) < SimuladorParabolico.ARRASTRE_MIN) return null;
-
-        const { v0, theta } = Cinematica.lanzamientoDesdeArrastre(dx, dy);
-        const origen = this._origen();
-        return { x0: origen.x, y0: origen.y, v0, theta };
+    /** Elige el menor ancho "redondo" en el que caben alcance y altura (con holgura). */
+    _recalcularEscala() {
+        if (!this.p) return;
+        const area = this._areaGrafica();
+        const relacion = area.alto / area.ancho;
+        const R = this.alcance * 1.08;
+        const H = this.alturaMaxima * 1.15;
+        const { ANCHOS_MUNDO } = SimuladorParabolico;
+        this.anchoMundo = ANCHOS_MUNDO.find((w) => w >= R && w * relacion >= H) ?? ANCHOS_MUNDO[ANCHOS_MUNDO.length - 1];
+        this.escala = area.ancho / this.anchoMundo;
     }
 
-    _disparar(lanzamiento) {
-        this._lanzamiento = lanzamiento;
-        this._t = 0;
-        this._proyectil.x = lanzamiento.x0;
-        this._proyectil.y = lanzamiento.y0;
-        this._ancla = null;
-        this._puntero = null;
-        this._fase = SimuladorParabolico.FASE.VUELO;
+    _aPantalla(x, y, area) {
+        return { x: area.x0 + x * this.escala, y: area.y0 - y * this.escala };
     }
 
-    /** Integra la trayectoria analítica en subpasos fijos; se detiene en la primera resolución. */
-    _avanzar(dtMs) {
-        const { FASE, DT_MAX_MS, PASO_MAX_S } = SimuladorParabolico;
-        let restante = Math.min(dtMs, DT_MAX_MS) / 1000;
+    _sincronizarBotones() {
+        const lanzar = this.boton('lanzar');
+        if (!lanzar) return;
+        const enVuelo = this.fase === SimuladorParabolico.FASE.VUELO;
+        lanzar.disabled = enVuelo;
+        lanzar.textContent = this.fase === SimuladorParabolico.FASE.ATERRIZADO ? 'Lanzar de nuevo' : 'Lanzar';
 
-        while (restante > 0 && this._fase === FASE.VUELO) {
-            const paso = Math.min(restante, PASO_MAX_S);
-            this._t += paso;
-            restante -= paso;
-
-            const pos = Cinematica.posicion(this._lanzamiento, this._t);
-            this._proyectil.x = pos.x;
-            this._proyectil.y = pos.y;
-
-            // Orden de prioridad: el objetivo se evalúa antes que el suelo (el objetivo apoya sobre él)
-            if (this._colisionaObjetivo(pos)) this._resolver('acierto');
-            else if (this._fueraDeLimites(pos)) this._resolver('fallo');
-        }
-    }
-
-    /** Colisión círculo (proyectil) contra rectángulo (objetivo). */
-    _colisionaObjetivo({ x, y }) {
-        const o = this._objetivo;
-        const r = SimuladorParabolico.RADIO_PROYECTIL;
-        const cx = Math.min(Math.max(x, o.x), o.x + o.ancho);
-        const cy = Math.min(Math.max(y, o.y), o.y + o.alto);
-        return (x - cx) ** 2 + (y - cy) ** 2 <= r * r;
-    }
-
-    /** Sale por los lados o toca el suelo en descenso. */
-    _fueraDeLimites({ x, y }) {
-        const r = SimuladorParabolico.RADIO_PROYECTIL;
-        const bajando = Cinematica.velocidadVertical(this._lanzamiento, this._t) < 0;
-        return x < -r || x > this._p.width + r || (bajando && y >= this._sueloY() - r);
-    }
-
-    /**
-     * Cierra el disparo. El guardado de fase impide resoluciones duplicadas: un mismo disparo
-     * nunca puede restar dos vidas ni sumar XP dos veces.
-     */
-    _resolver(resultado) {
-        const { FASE, PAUSA_RESULTADO_MS } = SimuladorParabolico;
-        if (this._fase !== FASE.VUELO) return;
-
-        this._fase = FASE.RESUELTO;
-        this._lanzamiento = null;
-        this._mensajeResultado = resultado === 'acierto' ? '¡Impacto Perfecto!' : 'Fallaste. Intenta de nuevo.';
-
-        // Fuera del frame de dibujo: la mutación del estado/DOM externo no ocurre dentro de draw()
-        queueMicrotask(() => {
-            if (!this._destruido && this._alResolver) this._alResolver(resultado);
+        const g = this.params.g;
+        this.controles.querySelectorAll('[data-accion="gravedad"]').forEach((b) => {
+            b.setAttribute('aria-pressed', String(Math.abs(Number(b.dataset.valor) - g) < 0.05));
         });
-
-        this._temporizadorReinicio = setTimeout(() => {
-            this._temporizadorReinicio = null;
-            if (!this._destruido) this._prepararRonda();
-        }, PAUSA_RESULTADO_MS);
-    }
-
-    _prepararRonda() {
-        const p = this._p;
-        const origen = this._origen();
-        const o = this._objetivo;
-
-        this._proyectil.x = origen.x;
-        this._proyectil.y = origen.y;
-        o.x = p.random(p.width / 2 + 50, p.width - 60);
-        o.y = this._sueloY() - o.alto;
-
-        this._lanzamiento = null;
-        this._t = 0;
-        this._ancla = null;
-        this._puntero = null;
-        this._fase = SimuladorParabolico.FASE.LISTO;
     }
 
     // ------------------------------------------------------------------
-    // Render (solo dibuja dentro del canvas; no toca el DOM)
+    // Render
     // ------------------------------------------------------------------
 
-    _mensaje() {
+    dibujar(p) {
         const { FASE } = SimuladorParabolico;
-        switch (this._fase) {
-            case FASE.APUNTANDO: return 'Suelta para lanzar.';
-            case FASE.VUELO: return '¡Proyectil en vuelo!';
-            case FASE.RESUELTO: return this._mensajeResultado;
-            default: return this._bloqueo ? this._bloqueo.mensaje : 'Arrastra y suelta para disparar.';
+        const area = this._areaGrafica();
+        p.background(this.c.fondo);
+
+        this._dibujarCuadricula(p, area);
+        this._dibujarCurva(p, area, this.tiempoVuelo, this.alfa('tenue', 110), 2, true);
+        if (this.fase !== FASE.LISTO) this._dibujarCurva(p, area, this.t, this.c.cian, 3, false);
+        this._dibujarCanon(p, area);
+        this._dibujarMarcas(p, area);
+        this._dibujarProyectil(p, area);
+        this._dibujarHud(p);
+    }
+
+    _dibujarCuadricula(p, area) {
+        const paso = this.anchoMundo / 10;
+        const decimales = paso < 1 ? 1 : 0;
+        const saltoEtiqueta = paso * this.escala < 36 ? 2 : 1;   // en móviles se rotula una línea de cada dos
+        p.textSize(11);
+        p.strokeWeight(1);
+
+        for (let i = 0; i <= 10; i++) {
+            const x = area.x0 + i * paso * this.escala;
+            p.stroke(this.alfa('texto', 18));
+            p.line(x, area.y0, x, area.y0 - area.alto);
+            if (i % saltoEtiqueta) continue;
+            p.noStroke();
+            p.fill(this.c.tenue);
+            p.textAlign(p.CENTER, p.TOP);
+            p.text(SimuladorBase.formato(i * paso, decimales), x, area.y0 + 8);
+        }
+        for (let y = paso; y * this.escala <= area.alto; y += paso) {
+            const py = area.y0 - y * this.escala;
+            p.stroke(this.alfa('texto', 18));
+            p.line(area.x0, py, area.x0 + area.ancho, py);
+            p.noStroke();
+            p.fill(this.c.tenue);
+            p.textAlign(p.RIGHT, p.CENTER);
+            p.text(SimuladorBase.formato(y, decimales), area.x0 - 8, py);
+        }
+
+        // Suelo y unidades
+        p.stroke(this.alfa('tenue', 160));
+        p.strokeWeight(2);
+        p.line(area.x0, area.y0, area.x0 + area.ancho, area.y0);
+        p.noStroke();
+        p.fill(this.c.tenue);
+        p.textAlign(p.RIGHT, p.TOP);
+        p.text('x (m)', p.width - 4, area.y0 + 20);
+        p.textAlign(p.LEFT, p.TOP);
+        p.text('y (m)', 4, 4);
+    }
+
+    /** Polilínea de la trayectoria analítica entre 0 y tFin (prevista o recorrida). */
+    _dibujarCurva(p, area, tFin, color, grosor, discontinua) {
+        if (tFin <= 0) return;
+        const { v0, g } = this.params;
+        const theta = this.theta;
+        const n = SimuladorParabolico.SEGMENTOS_CURVA;
+
+        p.noFill();
+        p.stroke(color);
+        p.strokeWeight(grosor);
+        if (discontinua) p.drawingContext.setLineDash([6, 6]);
+        p.beginShape();
+        for (let i = 0; i <= n; i++) {
+            const e = Cinematica.estado(v0, theta, g, (tFin * i) / n);
+            p.vertex(area.x0 + e.x * this.escala, area.y0 - Math.max(0, e.y) * this.escala);
+        }
+        p.endShape();
+        if (discontinua) p.drawingContext.setLineDash([]);
+    }
+
+    _dibujarCanon(p, area) {
+        const theta = this.theta;
+        p.push();
+        p.translate(area.x0, area.y0);
+
+        // Arco del ángulo con su etiqueta
+        p.noFill();
+        p.stroke(this.alfa('violeta', 200));
+        p.strokeWeight(1.5);
+        p.arc(0, 0, 70, 70, -theta, 0);
+        p.noStroke();
+        p.fill(this.c.violeta);
+        p.textSize(12);
+        p.textAlign(p.LEFT, p.CENTER);
+        p.text(`θ = ${this.params.angulo}°`, 44 * Math.cos(theta / 2), -44 * Math.sin(theta / 2));
+
+        // Tubo + base
+        p.rotate(-theta);
+        p.fill(this.alfa('cian', 220));
+        p.rect(0, -6, 30, 12, 4);
+        p.rotate(theta);
+        p.fill(this.c.cian);
+        p.arc(0, 0, 30, 30, Math.PI, Math.PI * 2);
+        p.pop();
+    }
+
+    /** Altura máxima siempre visible; alcance cuando el proyectil aterriza. */
+    _dibujarMarcas(p, area) {
+        const { FASE } = SimuladorParabolico;
+        const tCima = this.tiempoVuelo / 2;
+        const cima = Cinematica.estado(this.params.v0, this.theta, this.params.g, tCima);
+        const pc = this._aPantalla(cima.x, cima.y, area);
+
+        p.stroke(this.alfa('violeta', 120));
+        p.strokeWeight(1);
+        this.lineaDiscontinua(p, pc.x, pc.y, pc.x, area.y0, 4, 4);
+        p.noStroke();
+        p.fill(this.c.violeta);
+        p.circle(pc.x, pc.y, 6);
+        p.textSize(12);
+        p.textAlign(p.CENTER, p.BOTTOM);
+        p.text(`H = ${SimuladorBase.formato(this.alturaMaxima)} m`, pc.x, pc.y - 8);
+
+        if (this.fase === FASE.ATERRIZADO) {
+            const px = area.x0 + this.alcance * this.escala;
+            p.fill(this.c.teal);
+            p.circle(px, area.y0, 8);
+            p.textAlign(p.CENTER, p.BOTTOM);
+            p.text(`R = ${SimuladorBase.formato(this.alcance)} m`, Math.min(px, p.width - 50), area.y0 - 10);
         }
     }
 
-    _dibujar(p) {
-        const c = this._colorP5;
-        const { CANON, RADIO_PROYECTIL, ALTO_SUELO, FASE } = SimuladorParabolico;
-        const sueloY = this._sueloY();
-        const o = this._objetivo;
+    _dibujarProyectil(p, area) {
+        const { PX_POR_MS } = SimuladorParabolico;
+        const e = Cinematica.estado(this.params.v0, this.theta, this.params.g, this.t);
+        const pos = this._aPantalla(e.x, Math.max(0, e.y), area);
 
-        p.background(c.fondo);
+        // Vectores: componentes vx (cian), vy (violeta) y resultante v (blanco)
+        const vx = e.vx * PX_POR_MS;
+        const vy = -e.vy * PX_POR_MS;
+        this.flecha(p, pos.x, pos.y, pos.x + vx, pos.y, this.alfa('cian', 230), 2);
+        this.flecha(p, pos.x, pos.y, pos.x, pos.y + vy, this.alfa('violeta', 230), 2);
+        this.flecha(p, pos.x, pos.y, pos.x + vx, pos.y + vy, this.c.texto, 2.5);
+
         p.noStroke();
-
-        // Suelo
-        p.fill(c.estructura);
-        p.rect(0, sueloY, p.width, ALTO_SUELO);
-
-        // Objetivo
-        p.fill(c.objetivo);
-        p.rect(o.x, o.y, o.ancho, o.alto, 4);
-
-        // Cañón base
-        p.fill(c.canon);
-        p.arc(CANON.x, sueloY, CANON.radio * 2, CANON.radio * 2, p.PI, p.TWO_PI);
-
-        if (this._fase === FASE.APUNTANDO) this._dibujarApuntado(p, c, sueloY);
-
-        // Proyectil
-        p.fill(c.estructura);
-        p.noStroke();
-        p.circle(this._proyectil.x, this._proyectil.y, RADIO_PROYECTIL * 2);
-
-        // Mensaje de estado
-        p.fill(c.mensaje);
-        p.textFont('Inter');
-        p.textSize(15);
-        p.textAlign(p.CENTER);
-        p.text(this._mensaje(), p.width / 2, 35);
+        p.fill(this.c.texto);
+        p.circle(pos.x, pos.y, 14);
+        p.fill(this.c.cian);
+        p.circle(pos.x, pos.y, 6);
     }
 
-    /** Línea de tensión y guía punteada calculada con la misma cinemática que el disparo real. */
-    _dibujarApuntado(p, c, sueloY) {
-        p.stroke(c.guia);
-        p.strokeWeight(3);
-        p.line(this._ancla.x, this._ancla.y, this._puntero.x, this._puntero.y);
-
-        const lanzamiento = this._calcularLanzamiento();
-        if (!lanzamiento) return;
-
-        p.noStroke();
-        p.fill(c.guia);
-        for (let i = 1; i <= SimuladorParabolico.PUNTOS_GUIA; i++) {
-            const pos = Cinematica.posicion(lanzamiento, i * SimuladorParabolico.PASO_GUIA_S);
-            if (pos.y > sueloY) break;
-            p.circle(pos.x, pos.y, 4);
-        }
+    _dibujarHud(p) {
+        const f = SimuladorBase.formato;
+        const e = Cinematica.estado(this.params.v0, this.theta, this.params.g, this.t);
+        const repro = this.velocidadReproduccion;
+        const lineas = [
+            `t = ${f(this.t, 2)} s${repro > 1.05 ? `  (×${f(repro, 1)})` : ''}`,
+            `x = ${f(e.x)} m   y = ${f(Math.max(0, e.y))} m`,
+            `vx = ${f(e.vx)} m/s   vy = ${f(e.vy)} m/s`
+        ];
+        const teoria = [
+            `Tiempo de vuelo: ${f(this.tiempoVuelo, 2)} s`,
+            `Alcance R: ${f(this.alcance)} m`,
+            `Altura máx. H: ${f(this.alturaMaxima)} m`
+        ];
+        const { MARGEN } = SimuladorParabolico;
+        this.hud(p, MARGEN.izq + 8, MARGEN.sup, lineas);
+        if (p.width >= 560) this.hud(p, p.width - MARGEN.der - 4, MARGEN.sup, teoria, 'derecha');
     }
 }

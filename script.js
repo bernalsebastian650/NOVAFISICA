@@ -1,10 +1,13 @@
 /**
  * NOVAFÍSICA - Controlador de interfaz (Emil Kowalski Edition)
  *
- * Orden de carga (index.html): Cinematica.js → GestorProgreso.js → SimuladorParabolico.js → Carrusel.js → script.js
+ * Orden de carga (index.html): Cinematica.js → GestorProgreso.js → RetoParabolico.js → SimuladorBase.js →
+ *   SimuladorParabolico.js → SimuladorNewton.js → SimuladorOndas.js → Laboratorio.js → Carrusel.js → script.js
  *
  *   GestorProgreso      → estado y localStorage (sin DOM)
- *   SimuladorParabolico → canvas p5.js (sin estado de usuario)
+ *   RetoParabolico      → reto gamificado de #desafios en p5.js (sin estado de usuario)
+ *   Laboratorio         → pestañas de #interactivo; un solo simulador p5 vivo a la vez
+ *   SimuladorParabolico / SimuladorNewton / SimuladorOndas → simuladores del laboratorio (SimuladorBase)
  *   Carrusel            → galería automática de #interactivo (sin estado de usuario)
  *   script.js           → une las piezas: toasts, render del progreso, login y scroll
  */
@@ -279,7 +282,7 @@ function iniciarSimulador() {
         return;
     }
 
-    simulador = new SimuladorParabolico({
+    simulador = new RetoParabolico({
         contenedor: document.getElementById('p5-game-container'),
         colores: leerColoresSimulador(),
         alResolver: (resultado) => {
@@ -288,6 +291,33 @@ function iniciarSimulador() {
         }
     });
     sincronizarBloqueoSimulador();
+}
+
+/** Paleta del laboratorio (fondo oscuro). Solo tokens hex: p5.color no interpreta color-mix(). */
+function leerColoresLaboratorio() {
+    return {
+        fondo: tokenCSS('--dark-blue'),
+        texto: tokenCSS('--white'),
+        tenue: tokenCSS('--text-muted'),
+        cian: tokenCSS('--accent-cyan'),
+        violeta: tokenCSS('--accent-violet'),
+        teal: tokenCSS('--accent-teal')
+    };
+}
+
+let laboratorio = null;
+
+/** Idempotente. Cada fábrica crea un simulador nuevo: Laboratorio destruye el anterior al cambiar de pestaña. */
+function iniciarLaboratorio() {
+    const raiz = document.getElementById('laboratorio');
+    if (laboratorio || !raiz || typeof p5 === 'undefined') return;
+
+    const colores = leerColoresLaboratorio();
+    laboratorio = new Laboratorio(raiz, {
+        parabolico: (panel) => new SimuladorParabolico({ panel, colores }),
+        newton: (panel) => new SimuladorNewton({ panel, colores }),
+        ondas: (panel) => new SimuladorOndas({ panel, colores })
+    });
 }
 
 // ==========================================
@@ -319,6 +349,7 @@ function initLogin() {
             requestAnimationFrame(() => {
                 mainContent.classList.add('visible');
                 iniciarSimulador(); // el contenedor ya tiene layout: el canvas toma su ancho real
+                iniciarLaboratorio();
             });
         });
     };

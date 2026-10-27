@@ -18,6 +18,8 @@
     --accent-violet: #C084FC;
     --accent-plasma: #7E22CE;
     --success: #10B981;
+    --accent-cyan-deep: #06B6D4;   /* Icono 1.er integrante («¿Quiénes Somos?») */
+    --accent-teal: #34D399;        /* Icono 3.er integrante («¿Quiénes Somos?») */
 
     /* --- Gradientes: solo para acción principal (Nebulosa) y recompensas (Plasma) --- */
     --nebula-grad: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
@@ -56,11 +58,19 @@
     --footer-bg: color-mix(in srgb, var(--dark-blue) 92%, transparent);     /* 92% mantiene --text-muted en AA (~5.6:1); al 75% caía a ~3.2:1 */
     --border-footer: color-mix(in srgb, var(--white) 10%, transparent);
     --border-footer-divider: color-mix(in srgb, var(--white) 8%, transparent);
+    --surface-quote: color-mix(in srgb, var(--dark-blue) 65%, transparent);  /* Tarjeta de cita «¿Quiénes Somos?» */
+    --surface-member: color-mix(in srgb, var(--dark-blue) 50%, transparent); /* Tarjetas de integrantes */
+    --border-member: color-mix(in srgb, var(--white) 8%, transparent);
+    --border-member-hover: color-mix(in srgb, var(--white) 20%, transparent);
+    --text-quote: color-mix(in srgb, var(--white) 85%, transparent);
     --glass-fill-stat: color-mix(in srgb, var(--white) 6%, transparent);   /* relleno translúcido de tarjetas de métricas */
     --carousel-control-bg: color-mix(in srgb, var(--dark-blue) 65%, transparent);       /* flechas y pista de puntos del carrusel */
     --carousel-control-bg-hover: color-mix(in srgb, var(--dark-blue) 85%, transparent);
     --carousel-dot: color-mix(in srgb, var(--white) 55%, transparent);
-    --blur-control: 8px;   /* desenfoque ligero para controles flotantes sobre imagen */
+    --blur-control: 8px;
+    --lab-surface: color-mix(in srgb, var(--white) 4%, transparent);        /* paneles de controles del laboratorio */
+    --lab-track: color-mix(in srgb, var(--white) 14%, transparent);         /* pista vacía de los sliders */
+    --lab-hover: color-mix(in srgb, var(--white) 8%, transparent);   /* desenfoque ligero para controles flotantes sobre imagen */
 
     /* --- Radios --- */
     --radius-card: 24px;   /* Tarjetas, contenedores y paneles */
@@ -603,6 +613,131 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
 .dot.is-active { width: 24px; border-radius: var(--radius-btn); background: var(--accent-cyan); }
 
 /* =========================================
+   LABORATORIO: SIMULADORES p5.js (#interactivo)
+   Bloque oscuro estático (sin .glass: sus hover/:active desplazarían el canvas y los sliders).
+   Escritorio: canvas | controles. Tablets y móviles: apilados.
+========================================= */
+.lab {
+    margin-top: var(--space-12);
+    padding: var(--space-6);
+    background: var(--dark-blue);
+    border: 1px solid var(--border-glass-dark);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-premium), var(--inset-highlight);
+    color: var(--white);
+}
+
+.lab-tabs {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2);
+    width: fit-content; max-width: 100%;
+    margin: 0 auto var(--space-6);
+    padding: var(--space-1);
+    background: var(--lab-surface);
+    border: 1px solid var(--border-glass-dark);
+    border-radius: var(--radius-card);
+}
+.lab-tab {
+    padding: var(--space-2) var(--space-5);
+    font-family: var(--font-heading); font-size: var(--fs-sm); font-weight: 600;
+    color: var(--text-muted);
+    background: transparent; border: none; border-radius: var(--radius-btn);
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--smooth), background-color var(--dur-fast) var(--smooth), transform var(--dur-fast) var(--spring);
+}
+.lab-tab:hover { color: var(--white); background: var(--lab-hover); }
+.lab-tab[aria-selected="true"] { color: var(--on-nebula); background: var(--nebula-grad); box-shadow: var(--shadow-nebula); }
+
+.lab-panel {
+    display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+    gap: var(--space-6); align-items: start;
+    border-radius: var(--radius-md);
+}
+.lab-panel[hidden] { display: none; }
+
+.lab-canvas {
+    min-height: 300px;
+    border: 1px solid var(--border-glass-dark);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+.lab-canvas canvas { display: block; }
+
+.lab-controls {
+    display: flex; flex-direction: column; gap: var(--space-5);
+    padding: var(--space-6);
+    background: var(--lab-surface);
+    backdrop-filter: blur(var(--blur-glass)); -webkit-backdrop-filter: blur(var(--blur-glass));
+    border: 1px solid var(--border-glass-dark);
+    border-radius: var(--radius-md);
+}
+
+.lab-control { display: grid; grid-template-columns: 1fr auto; align-items: baseline; row-gap: var(--space-2); }
+.lab-control label { font-size: var(--fs-sm); font-weight: 500; color: var(--text-muted); }
+.lab-symbol { font-style: italic; color: var(--white); }
+.lab-control output { font-family: var(--font-heading); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--accent-cyan); }
+
+/* Slider translúcido: pista rellena hasta --progreso (dato publicado por SimuladorBase) */
+.lab-control input[type="range"] {
+    grid-column: 1 / -1;
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: var(--space-6);
+    background: transparent; cursor: pointer;
+}
+.lab-control input[type="range"]::-webkit-slider-runnable-track {
+    height: var(--space-2); border-radius: var(--radius-btn);
+    background: linear-gradient(to right, var(--accent-cyan) var(--progreso, 50%), var(--lab-track) var(--progreso, 50%));
+}
+.lab-control input[type="range"]::-moz-range-track { height: var(--space-2); border-radius: var(--radius-btn); background: var(--lab-track); }
+.lab-control input[type="range"]::-moz-range-progress { height: var(--space-2); border-radius: var(--radius-btn); background: var(--accent-cyan); }
+.lab-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: var(--space-5); height: var(--space-5);
+    margin-top: calc((var(--space-2) - var(--space-5)) / 2);
+    border-radius: var(--radius-btn); border: 3px solid var(--accent-cyan);
+    background: var(--white); box-shadow: var(--shadow-glow-cyan);
+    transition: transform var(--dur-fast) var(--spring);
+}
+.lab-control input[type="range"]::-moz-range-thumb {
+    width: var(--space-4); height: var(--space-4);
+    border-radius: var(--radius-btn); border: 3px solid var(--accent-cyan);
+    background: var(--white); box-shadow: var(--shadow-glow-cyan);
+    transition: transform var(--dur-fast) var(--spring);
+}
+.lab-control input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.2); }
+.lab-control input[type="range"]:active::-moz-range-thumb { transform: scale(1.2); }
+
+.lab-presets { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.lab-chip {
+    padding: var(--space-1) var(--space-3);
+    font-family: var(--font-body); font-size: var(--fs-xs); font-weight: 500;
+    color: var(--text-muted);
+    background: transparent; border: 1px solid var(--border-glass-dark); border-radius: var(--radius-btn);
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--smooth), border-color var(--dur-fast) var(--smooth), background-color var(--dur-fast) var(--smooth), transform var(--dur-fast) var(--spring);
+}
+.lab-chip:hover { color: var(--white); background: var(--lab-hover); }
+.lab-chip[aria-pressed="true"] {
+    color: var(--accent-cyan);
+    background: color-mix(in srgb, var(--accent-cyan) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent-cyan) 40%, transparent);
+}
+
+.lab-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-1); }
+.lab-btn-primary { flex: 1; padding: var(--space-3) var(--space-6); white-space: nowrap; }
+.lab-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.lab-btn-primary:disabled::after { opacity: 0; }
+.lab-btn {
+    padding: var(--space-3) var(--space-6);
+    flex: 1 1 auto;
+    font-family: var(--font-heading); font-size: var(--fs-base); font-weight: 600; line-height: 1.5; white-space: nowrap;
+    color: var(--white);
+    background: var(--lab-surface); border: 1px solid var(--border-glass-dark); border-radius: var(--radius-btn);
+    cursor: pointer;
+    transition: background-color var(--dur-fast) var(--smooth), transform var(--dur-fast) var(--spring);
+}
+.lab-btn:hover { background: var(--lab-hover); }
+
+/* =========================================
    GAMIFICACIÓN (Glassmorphism)
 ========================================= */
 .gamification-dashboard { display: flex; flex-direction: column; gap: var(--space-12); }
@@ -672,26 +807,63 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
 }
 .footer-main { padding-bottom: var(--space-12); }
 
-/* Tarjeta «¿Quiénes Somos?»: glass estático (sin .glass, que añade hover/press de elemento interactivo) */
-.about-card {
-    max-width: 900px;
-    margin-inline: auto;
+/* «¿Quiénes Somos?»: badge + institución + cita + cuadrícula de integrantes */
+.about-section { max-width: 960px; margin-inline: auto; display: flex; flex-direction: column; align-items: center; text-align: center; }
+
+/* Reutiliza .section-badge con tinte cian (sobre oscuro el plasma no llega a AA) */
+.about-badge {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--fs-xs);
+    text-transform: none; letter-spacing: var(--tracking-wide);
+    color: var(--accent-cyan);
+    background: color-mix(in srgb, var(--accent-cyan-deep) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent-cyan-deep) 30%, transparent);
+}
+/* Anula el .badge-icon de las insignias (96px / 4.5rem) dentro del badge */
+.about-badge .badge-icon { display: inline; width: auto; height: auto; margin: 0; font-size: inherit; filter: none; }
+
+.institution-title {
+    margin: var(--space-4) 0 var(--space-8);
+    font-size: clamp(1.75rem, 3vw, 2.5rem); font-weight: 800;
+    color: var(--white); text-align: center; letter-spacing: var(--tracking-tight);
+}
+
+/* Cita: lleva .glass por la maqueta, pero es estática (sin elevación ni compresión) */
+.about-quote-card.glass {
+    width: 100%;
     padding: var(--space-10) var(--space-8);
-    text-align: center;
-    background: var(--glass-fill-stat);
-    border: 1px solid var(--border-glass-dark);
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-glass), var(--inset-highlight);
+    background: var(--surface-quote);
+    border-color: var(--border-footer);
+    cursor: default;
+    text-align: center; font-style: italic;
+    font-size: var(--fs-base); line-height: 1.7; color: var(--text-quote);
 }
-/* Reutiliza .section-badge; sobre oscuro el plasma no llega a AA, se usa violeta */
-.footer-badge {
-    color: var(--accent-violet);
-    background: color-mix(in srgb, var(--accent-violet) 10%, transparent);
-    border-color: color-mix(in srgb, var(--accent-violet) 25%, transparent);
+.about-quote-card.glass:hover, .about-quote-card.glass:active { transform: none; }
+.about-quote-card.glass:hover::after { opacity: 0; }
+.highlight-cyan { color: var(--accent-cyan); font-weight: 600; font-style: normal; }
+
+.team-cards-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6);
+    width: 100%; margin-top: var(--space-8); list-style: none;
 }
-.about-title { margin-bottom: var(--space-4); font-size: var(--fs-xl); color: var(--white); letter-spacing: var(--tracking-tight); }
-.about-text { font-size: var(--fs-md); line-height: 1.65; color: var(--text-muted); }
-.about-text strong { font-weight: 600; color: var(--white); }
+.team-member-card.glass {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: var(--space-8) var(--space-6);
+    text-align: center; cursor: default;
+    background: var(--surface-member);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-color: var(--border-member);
+    transition: transform var(--dur-fast) var(--spring), border-color var(--dur-fast) var(--smooth);
+}
+.team-member-card.glass:hover { transform: translateY(-4px); border-color: var(--border-member-hover); }
+.team-member-card.glass:active { transform: scale(0.96); transition-duration: var(--dur-press); }
+.member-icon { display: block; }
+.member--cyan .member-icon { color: var(--accent-cyan-deep); }
+.member--violet .member-icon { color: var(--accent-violet); }
+.member--teal .member-icon { color: var(--accent-teal); }
+.member-name { margin: var(--space-4) 0 var(--space-1); font-size: var(--fs-base); font-weight: 600; color: var(--white); }
+.member-role { font-size: var(--fs-xs); color: var(--text-muted); }
 
 /* Barra de cierre legal */
 .footer-bottom {
@@ -732,7 +904,8 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
    EXCEPCIÓN: #p5-game-container y su canvas NUNCA llevan :active ni transform.
 ========================================= */
 .btn:active, .btn-nebula:active, .btn-plasma:active,
-.video-card:active, .glass:active, .nav a:active, .logo:active, .carousel-btn:active {
+.video-card:active, .glass:active, .nav a:active, .logo:active, .carousel-btn:active,
+.lab-tab:active, .lab-chip:active, .lab-btn:active {
     transform: scale(0.96);
     transition-duration: var(--dur-press);
 }
@@ -741,7 +914,9 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
    ACCESIBILIDAD: FOCO VISIBLE
 ========================================= */
 .btn:focus-visible, .nav a:focus-visible, .logo:focus-visible,
-.carousel-btn:focus-visible, .dot:focus-visible, .video-card:focus-visible, .glass:focus-visible {
+.carousel-btn:focus-visible, .dot:focus-visible, .video-card:focus-visible, .glass:focus-visible,
+.lab-tab:focus-visible, .lab-chip:focus-visible, .lab-btn:focus-visible, .lab-panel:focus-visible,
+.lab-control input[type="range"]:focus-visible {
     outline: 2px solid var(--accent-cyan); outline-offset: 4px;
 }
 .dot:focus-visible { outline-offset: 2px; }
@@ -763,7 +938,9 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
     }
     .btn:hover, .btn:active, .nav a:hover, .nav a:active, .logo:active, .carousel-btn:hover, .carousel-btn:active, .video-card:hover, .video-card:active,
     .glass:hover, .glass:active, .info-card:hover, .info-card.glass:hover, .battery:hover, .stat-value.is-bumping,
-    .glass:hover .badge-icon { transform: none !important; }
+    .glass:hover .badge-icon, .lab-tab:active, .lab-chip:active, .lab-btn:active { transform: none !important; }
+    .lab-control input[type="range"]:active::-webkit-slider-thumb { transform: none !important; }
+    .lab-control input[type="range"]:active::-moz-range-thumb { transform: none !important; }
     /* Carrusel: las diapositivas se apilan y se cambia con un fundido en lugar de desplazarse */
     .carousel-track { display: grid; transform: none; }
     .carousel-slide { grid-area: 1 / 1; opacity: 0; transition: opacity 0.3s var(--smooth); }
@@ -778,6 +955,11 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
    RESPONSIVE DESIGN (Móviles y pantallas reducidas)
 ========================================= */
 
+/* Laboratorio: controles bajo el canvas en tablets y móviles */
+@media (max-width: 1024px) {
+    .lab-panel { grid-template-columns: 1fr; }
+}
+
 /* Colapso de la cuadrícula de videos a 1 columna en tablets y móviles */
 @media (max-width: 768px) {
     .videos-grid {
@@ -787,7 +969,12 @@ h3, h4, .category-title { font-weight: 600; line-height: 1.3; }
         font-size: clamp(1.5rem, 6vw, 1.75rem);
         overflow-wrap: break-word;
     }
-    .about-card { padding: var(--space-8) var(--space-5); }
+    .about-quote-card.glass { padding: var(--space-8) var(--space-5); }
+    .team-cards-grid { grid-template-columns: 1fr; }
+    .lab { padding: var(--space-4); }
+    /* Pestañas en 3 columnas iguales: no se apilan en una pila alta */
+    .lab-tabs { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; border-radius: var(--radius-md); }
+    .lab-tab { padding: var(--space-2); font-size: var(--fs-xs); line-height: 1.3; border-radius: var(--radius-sm); }
     .footer-bottom { flex-direction: column; justify-content: center; text-align: center; }
 }
 
